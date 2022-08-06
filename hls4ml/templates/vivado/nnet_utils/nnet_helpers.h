@@ -177,12 +177,30 @@ void convert_data(srcType *src, hls::stream<dstType> &dst) {
 }
 
 template<class srcType, class dstType, size_t SIZE>
+void convert_data_ss(srcType *src, hls::stream<dstType> &dst) {    
+    dstType ctype;
+    for (size_t i = 0; i < SIZE; i++) {
+        ctype=dstType(src[i]);
+        dst.write(ctype);
+    }
+}
+
+template<class srcType, class dstType, size_t SIZE>
 void convert_data(hls::stream<srcType> &src, dstType *dst) {
     for (size_t i = 0; i < SIZE / srcType::size; i++) {
         srcType ctype = src.read();
         for (size_t j = 0; j < srcType::size; j++) {
             dst[i * srcType::size + j] = dstType(ctype[j]);
         }
+    }
+}
+
+template<class srcType, class dstType, size_t SIZE>
+void convert_data_me(hls::stream<srcType> &src, dstType *dst) {    
+    srcType ctype;
+    for (size_t i = 0; i < SIZE; i++) {
+        ctype = src.read();
+        dst[i] = dstType(ctype);        
     }
 }
 
@@ -301,6 +319,18 @@ void copy_data(std::vector<src_T> src, hls::stream<dst_T> &dst) {
 }
 
 template<class src_T, class dst_T, size_t OFFSET, size_t SIZE>
+void copy_data_ss(std::vector<src_T> src, hls::stream<dst_T> &dst) {
+    typename std::vector<src_T>::const_iterator in_begin = src.cbegin() + OFFSET;
+    typename std::vector<src_T>::const_iterator in_end = in_begin + SIZE;
+
+    dst_T res;
+    for (typename std::vector<src_T>::const_iterator i = in_begin; i != in_end; ++i) {
+        res = dst_T(*i);
+        dst.write(dst_pack);
+    }
+}
+
+template<class src_T, class dst_T, size_t OFFSET, size_t SIZE>
 void copy_data_axi(std::vector<src_T> src, dst_T dst[SIZE]) {
     for(auto i = 0; i < SIZE; i++)
     	if(i == SIZE - 1)
@@ -335,6 +365,17 @@ void print_result(hls::stream<res_T> &result, std::ostream &out, bool keep = fal
     out << std::endl;
 }
 
+template<class res_T, size_t SIZE>
+void print_result_ss(hls::stream<res_T> &result, std::ostream &out, bool keep = false) {
+
+    for(int i = 0; i < SIZE; i++) {
+        res_T res_pack = result.read();
+        out << res_pack << " ";
+        if (keep) result.write(res_pack);
+		if(i == 255)out << std::endl;
+    }
+}
+
 template<class data_T, size_t SIZE>
 void fill_zero(data_T data[SIZE]) {
     std::fill_n(data, SIZE, 0.);
@@ -348,6 +389,15 @@ void fill_zero(hls::stream<data_T> &data) {
             data_pack[j] = 0.;
         }
         data.write(data_pack);
+    }
+}
+
+template<class data_T, size_t SIZE>
+void fill_zero_ss(hls::stream<data_T> &data) {
+
+    data_T data_zero=0;
+    for(int i = 0; i < SIZE ; i++) {
+        data.write(data_zero);
     }
 }
 
