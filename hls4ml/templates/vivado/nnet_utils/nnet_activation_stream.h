@@ -51,6 +51,17 @@ void linear(hls::stream<data_T> &data, hls::stream<res_T> &res) {
     }
 }
 
+template<class data_T, class res_T, typename CONFIG_T>
+void linear_ss(hls::stream<data_T> &data, hls::stream<res_T> &res) {
+    LinearLoop: for (int i = 0; i < CONFIG_T::n_in; i++) {
+        #pragma HLS PIPELINE
+
+        data_T in_data = data.read();
+        res_T out_data = in_data;
+        res.write(out_data);
+    }
+}
+
 
 // *************************************************
 //       RELU Activation
@@ -70,6 +81,21 @@ void relu(hls::stream<data_T> &data, hls::stream<res_T> &res) {
             else out_data[j] = 0;
         }
 
+        res.write(out_data);
+    }
+}
+
+template<class data_T, class res_T, typename CONFIG_T>
+void relu_ss(hls::stream<data_T> &data, hls::stream<res_T> &res) {
+    ReLULoop: for (int i = 0; i < CONFIG_T::n_in; i++) {
+        #pragma HLS PIPELINE
+
+        data_T in_data = data.read();
+        res_T out_data;
+        
+        if (in_data > 0) out_data = in_data;
+        else out_data = 0;
+        
         res.write(out_data);
     }
 }
@@ -113,6 +139,38 @@ void sigmoid(hls::stream<data_T> &data, hls::stream<res_T> &res) {
     }
 }
 
+
+template<class data_T, class res_T, typename CONFIG_T>
+void sigmoid_ss(hls::stream<data_T> &data, hls::stream<res_T> &res) {
+    // Initialize the lookup table
+#ifdef __HLS_SYN__
+    bool initialized = false;
+    typename CONFIG_T::table_t sigmoid_table[CONFIG_T::table_size];
+#else
+    static bool initialized = false;
+    static typename CONFIG_T::table_t sigmoid_table[CONFIG_T::table_size];
+#endif
+    if (!initialized) {
+        init_sigmoid_table<CONFIG_T, CONFIG_T::table_size>(sigmoid_table);
+        initialized = true;
+    }
+
+    SigmoidActLoop: for (int i = 0; i < CONFIG_T::n_in; i++) {
+        #pragma HLS PIPELINE
+
+        data_T in_data = data.read();
+        res_T out_data;
+    
+        int data_round = in_data*CONFIG_T::table_size/16;
+        int index = data_round + 8*CONFIG_T::table_size/16;
+        if (index < 0)   index = 0;
+        else if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
+        out_data = sigmoid_table[index];
+        
+
+        res.write(out_data);
+    }
+}
 
 // *************************************************
 //       Softmax Activation
