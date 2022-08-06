@@ -617,6 +617,19 @@ void leaky_relu(hls::stream<data_T> &data, typename data_T::value_type alpha, hl
 }
 
 
+template<class data_T, class res_T, typename CONFIG_T>
+void leaky_relu_ss(hls::stream<data_T> &data,data_T alpha, hls::stream<res_T> &res) {
+    LeakyReLUActLoop: for (int i = 0; i < CONFIG_T::n_in; i++) {
+        #pragma HLS PIPELINE
+
+        data_T in_data = data.read();
+        res_T out_data;
+        if (in_data > 0) out_data = in_data;
+        else out_data = alpha * in_data;
+        res.write(out_data);
+    }
+}
+
 // *************************************************
 //       Thresholded RELU Activation
 // *************************************************
