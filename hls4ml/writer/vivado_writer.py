@@ -379,7 +379,7 @@ class VivadoWriter(Writer):
                 offset = 0
                 for inp in model_inputs:
                     newline += '      ' + inp.definition_cpp() + ';\n'
-                    newline += '      nnet::copy_data<float, {}, {}, {}>(in, {});\n'.format(inp.type.name, offset, inp.size_cpp(), inp.name)
+                    newline += '      nnet::copy_data_ss<float, {}, {}, {}>(in, {});\n'.format(inp.type.name, offset, inp.size_cpp(), inp.name)
                     offset += inp.size()
                 for out in model_outputs:
                     newline += '      ' + out.definition_cpp() + ';\n'
@@ -387,7 +387,7 @@ class VivadoWriter(Writer):
                 newline = line
                 for inp in model_inputs:
                     newline += '    ' + inp.definition_cpp() + ';\n'
-                    newline += '    nnet::fill_zero<{}, {}>({});\n'.format(inp.type.name, inp.size_cpp(), inp.name)
+                    newline += '    nnet::fill_zero_ss<{}, {}>({});\n'.format(inp.type.name, inp.size_cpp(), inp.name)
                 for out in model_outputs:
                     newline += '    ' + out.definition_cpp() + ';\n'
             elif '//hls-fpga-machine-learning insert top-level-function' in line:
@@ -413,11 +413,11 @@ class VivadoWriter(Writer):
             elif '//hls-fpga-machine-learning insert tb-output' in line:
                 newline = line
                 for out in model_outputs:
-                    newline += indent + 'nnet::print_result<{}, {}>({}, fout);\n'.format(out.type.name, out.size_cpp(), out.name) #TODO enable this
+                    newline += indent + 'nnet::print_result_ss<{}, {}>({}, fout);\n'.format(out.type.name, out.size_cpp(), out.name) #TODO enable this
             elif '//hls-fpga-machine-learning insert output' in line or '//hls-fpga-machine-learning insert quantized' in line:
                 newline = line
                 for out in model_outputs:
-                    newline += indent + 'nnet::print_result<{}, {}>({}, std::cout, true);\n'.format(out.type.name, out.size_cpp(), out.name)
+                    newline += indent + 'nnet::print_result_ss<{}, {}>({}, std::cout, true);\n'.format(out.type.name, out.size_cpp(), out.name)
             else:
                 newline = line
             fout.write(newline)
@@ -462,7 +462,7 @@ class VivadoWriter(Writer):
                 newline = ''
                 for i in model_inputs:
                     newline += indent + '{var};\n'.format(var=i.definition_cpp(name_suffix='_ap'))
-                    newline += indent + 'nnet::convert_data<{}, {}, {}>({}, {}_ap);\n'.format(dtype, i.type.name, i.size_cpp(), i.name, i.name)
+                    newline += indent + 'nnet::convert_data_ss<{}, {}, {}>({}, {}_ap);\n'.format(dtype, i.type.name, i.size_cpp(), i.name, i.name)
                 newline += '\n'
 
                 for o in model_outputs:
@@ -483,7 +483,7 @@ class VivadoWriter(Writer):
                 newline += '\n'
 
                 for o in model_outputs:
-                    newline += indent + 'nnet::convert_data<{}, {}, {}>({}_ap, {});\n'.format(o.type.name, dtype, o.size_cpp(), o.name, o.name)
+                    newline += indent + 'nnet::convert_data_ss<{}, {}, {}>({}_ap, {});\n'.format(o.type.name, dtype, o.size_cpp(), o.name, o.name)
             elif '//hls-fpga-machine-learning insert trace_outputs' in line:
                 newline = ''
                 for layer in model.get_layers():
