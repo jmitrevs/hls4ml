@@ -146,6 +146,71 @@ void compute_output_encoded(
 }
 
 
+// ------------------------------------------Single Stream -------------------------------------------
+
+template<class data_T, class res_T, typename CONFIG_T>
+void mult_buffer_ss(
+    hls::stream<data_T> data_window[CONFIG_T::kernel_size * CONFIG_T::n_chan],
+    res_T& out_data,
+    hls::stream<res_T>& res_stream,
+    unsigned & outputs_ready,
+    typename CONFIG_T::weight_t weights[CONFIG_T::kernel_size * CONFIG_T::n_chan * CONFIG_T::n_filt],
+    typename CONFIG_T::bias_t biases[CONFIG_T::n_filt]
+) {
+    #pragma HLS INLINE
+
+    data_T data[CONFIG_T::kernel_size * CONFIG_T::n_chan];
+    // #pragma HLS ARRAY_PARTITION variable=data complete
+    res_T res[CONFIG_T::n_filt];
+    // #pragma HLS ARRAY_PARTITION variable=res complete
+
+    InitData: for (int id = 0; id < CONFIG_T::kernel_size * CONFIG_T::n_chan; id++) {
+        // #pragma HLS UNROLL
+        data[id] = data_window[id].read();
+    }
+
+    #pragma HLS INLINE region
+    if (CONFIG_T::strategy == nnet::latency) {
+        dense_latency<data_T, res_T, typename CONFIG_T::mult_config>(data, res, weights, biases);
+    } else {
+        dense_large<data_T, res_T, typename CONFIG_T::mult_config>(data, res, weights, biases);
+    }
+
+    CastLoop: for (unsigned jj = 0; jj < CONFIG_T::n_filt; jj++) {
+        // #pragma HLS UNROLL
+        out_data = res[jj];
+        res_stream.write(out_data);
+    }
+}
+
+
+template<class data_T, class res_T, typename CONFIG_T>
+void compute_output_encoded_ss(
+    const data_T data[CONFIG_T::n_chan],
+    hls::stream<typename data_T::value_type> data_window[CONFIG_T::kernel_size * CONFIG_T::n_chan],
+    hls::stream<res_T> &res,
+    res_T &out_data,
+    unsigned &outputs_ready,
+    typename CONFIG_T::weight_t weights[CONFIG_T::kernel_size * CONFIG_T::n_chan * CONFIG_T::n_filt],
+    typename CONFIG_T::bias_t biases[CONFIG_T::n_filt],
+    ap_uint<CONFIG_T::filt_height * CONFIG_T::filt_width> &pixel_idx
+) {
+    #pragma HLS INLINE
+
+    CopyDataFilt: for (unsigned f = 0; f < CONFIG_T::kernel_size; f++) {
+        // #pragma HLS UNROLL
+        CopyDataChan: for (unsigned c = 0; c < CONFIG_T::n_chan; c++) {
+            // #pragma HLS UNROLL
+            if (pixel_idx[f]) data_window[f * CONFIG_T::n_chan + c].write(data[c]);
+        }
+    }
+    if (pixel_idx[CONFIG_T::kernel_size - 1]) {
+        mult_buffer_ss<data_T, res_T, CONFIG_T>(data_window, out_data, res, outputs_ready, weights, biases);
+    }
+    
+}
+
+
 
 // *************************************************
 //       Line Buffer Implementation (Phil's)
