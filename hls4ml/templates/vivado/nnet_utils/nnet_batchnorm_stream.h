@@ -67,8 +67,9 @@ void normalize(
     }
 }
 
+## ------------------------------ Single Stream ------------------------------ ##
 template<class data_T, class res_T, typename CONFIG_T>
-void normalize_me(
+void normalize_ss(
     hls::stream<data_T> &data,
     hls::stream<res_T>  &res,
     typename CONFIG_T::scale_t scale[CONFIG_T::n_in],
