@@ -326,7 +326,7 @@ void copy_data_ss(std::vector<src_T> src, hls::stream<dst_T> &dst) {
     dst_T res;
     for (typename std::vector<src_T>::const_iterator i = in_begin; i != in_end; ++i) {
         res = dst_T(*i);
-        dst.write(dst_pack);
+        dst.write(res);
     }
 }
 
