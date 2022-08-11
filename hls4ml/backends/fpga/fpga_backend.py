@@ -148,17 +148,11 @@ class FPGABackend(Backend):
         #_assert = _assert and _rf <= n_in
         #
         # THIS ASSERTION IS FOR USING THE MAX RF IN 1ST KIND OF THE DENSE LAYER
-        #_assert = _assert and _rf == n_in
+        _assert = _assert and _rf == n_in
         #
         # THIS ASSERTION IS FOR USING 2ND KIND OF THE DENSE LAYER WITH MAX RF
         #
         #_assert = _assert and _rf == (n_in * n_out)
-        
-        # set rf to n_out in Dense_ss, set rf to n_in in other ss layers 
-        if 'Dense' in layer.class_name:
-            _assert = _assert and _rf == n_out
-        else:
-            _assert = _assert and _rf == n_in
             
         return _assert
 
