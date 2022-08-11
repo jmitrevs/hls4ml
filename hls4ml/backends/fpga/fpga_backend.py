@@ -156,9 +156,9 @@ class FPGABackend(Backend):
         
         # set rf to n_out in Dense_ss, set rf to n_in in other ss layers 
         if 'Dense' in layer.class_name:
-            #_assert = _assert and _rf == n_out
+            _assert = _assert and _rf == n_out
         else:
-            #_assert = _assert and _rf == n_in
+            _assert = _assert and _rf == n_in
             
         return _assert
 
