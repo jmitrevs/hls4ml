@@ -65,7 +65,7 @@ global_pooling2d_config_template = """struct config{index} : nnet::pooling2d_con
 }};\n"""
 
 pooling1d_function_template = 'nnet::pooling1d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output});'
-pooling2d_function_template = 'nnet::pooling2d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output});'
+pooling2d_function_template = 'nnet::pooling2d_{data_format}_ss<{input_t}, {output_t}, {config}>({input}, {output});'
 global_pooling1d_function_template = 'nnet::global_pooling1d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output});'
 global_pooling2d_function_template = 'nnet::global_pooling2d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output});'
 
