@@ -135,7 +135,7 @@ class FPGABackend(Backend):
         ## get the block_factor, it is valid for first 2 kinds of the dense layers caculation
         _rf = min(n_in * n_out, rf)
         block_factor = int(math.ceil((n_in * n_out) / float(_rf)))
-        _assert = _assert and (input_presicion_width * block_factor) < 65536
+        _assert = _assert and (input_precision * block_factor) < 65536
         #
         # THIS ASSERTION IS FOR USING 1ST KIND OF THE DENSE LAYER
         #
