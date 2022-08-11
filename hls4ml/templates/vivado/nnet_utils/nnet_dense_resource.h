@@ -539,13 +539,13 @@ void dense_large(
 
     if (CONFIG_T::reuse_factor <= CONFIG_T::n_in) {
         std::cout<< "USE DENSE LARGE1" << std::endl;
-        dense_large_rf_leq_nin<data_T, res_T, CONFIG_T>(data, res, weights, biases);
+        //dense_large_rf_leq_nin<data_T, res_T, CONFIG_T>(data, res, weights, biases);
     } else if (CONFIG_T::reuse_factor % CONFIG_T::n_in == 0) {
         std::cout<< "USE DENSE LARGE2" << std::endl;
-        dense_large_rf_gt_nin_rem0<data_T, res_T, CONFIG_T>(data, res, weights, biases);
+        //dense_large_rf_gt_nin_rem0<data_T, res_T, CONFIG_T>(data, res, weights, biases);
     } else {
         std::cout<< "USE DENSE LARGE3" << std::endl;
-        dense_large_rf_gt_nin<data_T, res_T, CONFIG_T>(data, res, weights, biases);
+        //dense_large_rf_gt_nin<data_T, res_T, CONFIG_T>(data, res, weights, biases);
     }   
 }
 
