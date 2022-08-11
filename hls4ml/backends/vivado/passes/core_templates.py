@@ -22,7 +22,7 @@ dense_config_template = """struct config{index} : nnet::dense_config {{
     using product = nnet::product::{product_type}<x_T, y_T>;
 }};\n"""
 
-dense_function_template = 'nnet::dense<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
+dense_function_template = 'nnet::dense_ss<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
 
 dense_include_list = ['nnet_utils/nnet_dense.h', 'nnet_utils/nnet_dense_compressed.h', 'nnet_utils/nnet_dense_stream.h']
 
@@ -67,7 +67,7 @@ batchnorm_config_template = """struct config{index} : nnet::batchnorm_config {{
     using product = nnet::product::{product_type}<x_T, y_T>;
 }};\n"""
 
-batchnorm_function_template = 'nnet::normalize<{input_t}, {output_t}, {config}>({input}, {output}, {scale}, {bias});'
+batchnorm_function_template = 'nnet::normalize_ss<{input_t}, {output_t}, {config}>({input}, {output}, {scale}, {bias});'
 
 batchnorm_include_list = ['nnet_utils/nnet_batchnorm.h', 'nnet_utils/nnet_batchnorm_stream.h']
 
@@ -117,8 +117,8 @@ softmax_config_template = """struct {type}_config{index} : nnet::activ_config {{
     typedef {inv_table_t.name} inv_table_t;
 }};\n"""
 
-activ_function_template = 'nnet::{activation}<{input_t}, {output_t}, {config}>({input}, {output});'
-param_activ_function_template = 'nnet::{activation}<{input_t}, {output_t}, {config}>({input}, {param}, {output});'
+activ_function_template = 'nnet::{activation}_ss<{input_t}, {output_t}, {config}>({input}, {output});'
+param_activ_function_template = 'nnet::{activation}_ss<{input_t}, {output_t}, {config}>({input}, {param}, {output});'
 
 activ_include_list = ['nnet_utils/nnet_activation.h', 'nnet_utils/nnet_activation_stream.h']
 
