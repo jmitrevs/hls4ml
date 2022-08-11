@@ -166,6 +166,13 @@ void convert_data(srcType *src, dstType *dst) {
 }
 
 template<class srcType, class dstType, size_t SIZE>
+void convert_data_ss(srcType *src, dstType *dst) {
+    for (size_t i = 0; i < SIZE; i++) {
+        dst[i] = dstType(src[i]);
+    }
+}
+
+template<class srcType, class dstType, size_t SIZE>
 void convert_data(srcType *src, hls::stream<dstType> &dst) {
     for (size_t i = 0; i < SIZE / dstType::size; i++) {
         dstType ctype;
