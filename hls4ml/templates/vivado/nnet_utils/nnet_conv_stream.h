@@ -187,7 +187,7 @@ void mult_buffer_ss(
 template<class data_T, class res_T, typename CONFIG_T>
 void compute_output_encoded_ss(
     const data_T data[CONFIG_T::n_chan],
-    hls::stream<typename data_T::value_type> data_window[CONFIG_T::kernel_size * CONFIG_T::n_chan],
+    hls::stream<data_T> data_window[CONFIG_T::kernel_size * CONFIG_T::n_chan],
     hls::stream<res_T> &res,
     res_T &out_data,
     unsigned &outputs_ready,
