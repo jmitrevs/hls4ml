@@ -196,7 +196,7 @@ void convert_data(hls::stream<srcType> &src, dstType *dst) {
 }
 
 template<class srcType, class dstType, size_t SIZE>
-void convert_data_me(hls::stream<srcType> &src, dstType *dst) {    
+void convert_data_ss(hls::stream<srcType> &src, dstType *dst) {    
     srcType ctype;
     for (size_t i = 0; i < SIZE; i++) {
         ctype = src.read();
