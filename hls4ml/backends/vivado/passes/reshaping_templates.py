@@ -25,7 +25,7 @@ zeropad2d_config_template = """struct config{index} : nnet::padding2d_config {{
 }};\n"""
 
 zeropad1d_function_template = 'nnet::zeropad1d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output});'
-zeropad2d_function_template = 'nnet::zeropad2d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output});'
+zeropad2d_function_template = 'nnet::zeropad2d_{data_format}_ss<{input_t}, {output_t}, {config}>({input}, {output});'
 
 padding_include_list = ['nnet_utils/nnet_padding.h', 'nnet_utils/nnet_padding_stream.h']
 
@@ -66,7 +66,7 @@ resize_config_template = """struct config{index} : nnet::resize_config {{
     static const unsigned new_width = {out_width};
 }};\n"""
 
-resize_function_template = 'nnet::resize_{algorithm}<{input_t}, {config}>({input}, {output});'
+resize_function_template = 'nnet::resize_{algorithm}_ss<{input_t}, {config}>({input}, {output});'
 
 resize_include_list = ['nnet_utils/nnet_image.h', 'nnet_utils/nnet_image_stream.h']
 
