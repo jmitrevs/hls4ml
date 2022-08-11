@@ -557,7 +557,7 @@ void dense_ss(
 	typename CONFIG_T::bias_t   biases[CONFIG_T::n_out]) {
 	
 	// reuse factor need to be smaller than or equal to n_out
-	const int reuse_factor = (CONFIG_T::n_out > CONFIG_T::reuse_factor) ? CONFIG_T::n_out : CONFIG_T::reuse_factor ;
+	const int reuse_factor = (CONFIG_T::reuse_factor > CONFIG_T::n_out) ? CONFIG_T::n_out : CONFIG_T::reuse_factor ;
 	const int block_factor = DIV_ROUNDUP(CONFIG_T::n_out, reuse_factor);
 	#pragma HLS ARRAY_RESHAPE variable=weights block factor=CONFIG_T::n_out
 	#pragma HLS ARRAY_PARTITION variable=biases complete
