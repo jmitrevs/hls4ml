@@ -105,16 +105,20 @@ class FPGABackend(Backend):
         
         raise Exception(f'Cannot get mult size for layer {layer.name} ({layer.class_name})')
 
-    def get_valid_reuse_factors(self, n_in, n_out, input_precision):
+    def get_valid_reuse_factors(self, n_in, n_out, layer):
         max_rf = n_in * n_out
         valid_reuse_factors = []
         for rf in range(1, max_rf + 1):
-            _assert = self._validate_reuse_factor(n_in, n_out, rf, input_precision)
+            _assert = self._validate_reuse_factor(n_in, n_out, rf, layer)
             if _assert:
                 valid_reuse_factors.append(rf)
         return valid_reuse_factors
 
-    def _validate_reuse_factor(self, n_in, n_out, rf, input_precision):
+    def _validate_reuse_factor(self, n_in, n_out, rf, layer):
+        
+        # take the input_precision into account 
+        input_precision = layer.get_input_variable().type.precision.width
+        
         multfactor = min(n_in, rf)
         multiplier_limit = int(math.ceil((n_in * n_out) / float(multfactor)))
         #
@@ -136,18 +140,26 @@ class FPGABackend(Backend):
         _rf = min(n_in * n_out, rf)
         block_factor = int(math.ceil((n_in * n_out) / float(_rf)))
         _assert = _assert and (input_precision * block_factor) < 65536
+        
+        # ------------------Several Dense choices-----------------
         #
         # THIS ASSERTION IS FOR USING 1ST KIND OF THE DENSE LAYER
         #
         #_assert = _assert and _rf <= n_in
         #
         # THIS ASSERTION IS FOR USING THE MAX RF IN 1ST KIND OF THE DENSE LAYER
-        _assert = _assert and _rf == n_in
+        #_assert = _assert and _rf == n_in
         #
         # THIS ASSERTION IS FOR USING 2ND KIND OF THE DENSE LAYER WITH MAX RF
         #
         #_assert = _assert and _rf == (n_in * n_out)
         
+        # set rf to n_out in Dense_ss, set rf to n_in in other ss layers 
+        if 'Dense' in layer.class_name:
+            #_assert = _assert and _rf == n_out
+        else:
+            #_assert = _assert and _rf == n_in
+            
         return _assert
 
     def get_closest_reuse_factor(self, valid_rf, chosen_rf):
@@ -169,10 +181,8 @@ class FPGABackend(Backend):
 
     def set_closest_reuse_factor(self, layer, n_in, n_out, attribute='reuse_factor'):
         assert attribute is not None, 'Reuse factor attribute cannot be None'
-        
-        # take the input_precision into account 
-        input_precision = layer.get_input_variable().type.precision.width
-        valid_rf = self.get_valid_reuse_factors(n_in, n_out, input_precision)
+                
+        valid_rf = self.get_valid_reuse_factors(n_in, n_out, layer)
         chosen_rf = layer.get_attr(attribute)
         
         if chosen_rf not in valid_rf:
