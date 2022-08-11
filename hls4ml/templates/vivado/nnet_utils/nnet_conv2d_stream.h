@@ -269,7 +269,7 @@ void cnnshift_arr(
 }
     
 template<class data_T, class res_T, typename CONFIG_T>
-void conv_2d_cl_ss(
+void conv_2d_buffer_cl_ss(
      hls::stream<data_T> &data,
      hls::stream<res_T>  &res,
      typename CONFIG_T::weight_t weights[CONFIG_T::filt_height * CONFIG_T::filt_width * CONFIG_T::n_chan * CONFIG_T::n_filt],
