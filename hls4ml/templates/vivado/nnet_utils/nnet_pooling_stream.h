@@ -604,7 +604,7 @@ void global_pooling1d_cl(
 
 //MaxPool
 template<class data_T, class res_T, typename CONFIG_T>
-void pooling_ss(
+void pooling2d_cl_ss(
 	hls::stream<data_T> &data,
 	hls::stream<res_T>  &res) { 
 			
