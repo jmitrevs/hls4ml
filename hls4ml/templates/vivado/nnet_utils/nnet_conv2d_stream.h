@@ -167,7 +167,7 @@ void conv_2d_encoded_cl_ss(
 			  data_chan[i_ic] = data.read();
 			}
 		
-            compute_scaled_indices_2d<data_T, CONFIG_T>(i_ih, i_iw, pixel_idx);
+            compute_scaled_indices_2d_ss<data_T, CONFIG_T>(i_ih, i_iw, pixel_idx);
             compute_output_encoded_ss<data_T, res_T, CONFIG_T>(data_chan, data_window, res, out_data, outputs_ready, weights, biases, pixel_idx);
         }
     }
