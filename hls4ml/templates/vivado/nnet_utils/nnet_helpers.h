@@ -361,6 +361,14 @@ void print_result(res_T result[SIZE], std::ostream &out, bool keep = false) {
 }
 
 template<class res_T, size_t SIZE>
+void print_result_ss(res_T result[SIZE], std::ostream &out, bool keep = false) {
+    for(int i = 0; i < SIZE; i++) {
+        out << result[i] << " ";
+    }
+    out << std::endl;
+}
+
+template<class res_T, size_t SIZE>
 void print_result(hls::stream<res_T> &result, std::ostream &out, bool keep = false) {
     for(int i = 0; i < SIZE / res_T::size; i++) {
         res_T res_pack = result.read();
