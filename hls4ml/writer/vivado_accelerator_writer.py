@@ -267,7 +267,7 @@ class VivadoAcceleratorWriter(VivadoWriter):
                     indent = line.split('n')[0]
                     newline = indent + 'inputs[N_IN-1].last = 1;\n'
                 if 'copy_data' in line:
-                    newline = newline.replace('copy_data', 'copy_data_axi')
+                    newline = newline.replace('copy_data_ss', 'copy_data_axi')
             fout.write(newline)
 
         f.close()
