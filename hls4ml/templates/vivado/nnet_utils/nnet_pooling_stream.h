@@ -681,6 +681,53 @@ void pooling2d_cl_ss(
 		}
 	}
 }
+	
+// Global Average Pool	
+template<class data_T, class res_T, typename CONFIG_T>
+void global_pooling2d_cl_ss(
+    hls::stream<data_T> &data,
+    hls::stream<res_T> &res
+) {
+	assert(CONFIG_T::pad_top == 0 && CONFIG_T::pad_bottom == 0 && CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
+	assert(CONFIG_T::pool_height == CONFIG_T::stride_height && CONFIG_T::pool_width == CONFIG_T::stride_width);
+
+	typename CONFIG_T::accum_t data_window[CONFIG_T::n_filt];
+	#pragma HLS ARRAY_PARTITION variable=data_window complete
+
+	typename CONFIG_T::accum_t init = 0;
+
+	PoolInitLoop: 
+	for (unsigned i_init = 0; i_init < CONFIG_T::n_filt; i_init++) {
+	#pragma HLS PIPELINE
+		data_window[i_init] = init;
+	}
+    
+	if (CONFIG_T::pool_op == Max) {
+		// todo add GLOBAL MAX POOL
+		init = hls::numeric_limits<typename CONFIG_T::accum_t>::min();
+	}
+	else{
+		ReadInputHeight: 
+		for (unsigned i_ih = 0; i_ih < CONFIG_T::in_height; i_ih++) {
+		    ReadInputWidth: 
+		    for (unsigned i_iw = 0; i_iw < CONFIG_T::in_width ; i_iw++) {
+			ReadInputFilt: 
+			for (unsigned i_ic = 0; i_ic < CONFIG_T::n_filt ; i_ic++) {
+			#pragma HLS LOOP_FLATTEN
+			#pragma HLS PIPELINE
+				data_T in_data = data.read();
+				data_window[i_ic] += in_data/ (CONFIG_T::in_height * CONFIG_T::in_width);
+			}
+		    }
+		}
+
+		AvgPoolRes: 
+		for (unsigned i_res = 0; i_res < CONFIG_T::n_filt; i_res++) {
+			res_T out_data = data_window[i_res];
+			res.write(out_data);
+		}
+	}
+}
 
 	
 }
