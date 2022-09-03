@@ -83,7 +83,7 @@ void resize_nearest_ss(
 			
 			ImageChan: for (unsigned j = 0; j < CONFIG_T::n_chan; j++) {
 				#pragma HLS UNROLL
-				data_T in_data = iamge.read();
+				data_T in_data = image.read();
 				data_in_row[i][j] = in_data;
 			}
 		}
