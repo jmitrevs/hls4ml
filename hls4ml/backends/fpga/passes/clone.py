@@ -26,7 +26,7 @@ class CloneFunctionTemplate(FunctionCallTemplate):
             params['output' + str(i + 1)] = node.variables[node.outputs[i]].name
         
         if self.template is None:
-            self.template = 'nnet::clone_stream<{input_t}, {output_t}, {size}>({input}, ' + \
+            self.template = 'nnet::clone_stream_ss<{input_t}, {output_t}, {size}>({input}, ' + \
                             ', '.join(['{output' + str(i + 1) + '}' for i in range(len(node.outputs))]) + \
                             ');'
 
