@@ -339,7 +339,7 @@ void separable_conv_2d_cl(
 
 // Single stream for Seperable Conv2d
 template<class data_T, class res_T, typename CONFIG_T>
-void separable_conv_2d_cl(
+void separable_conv_2d_cl_ss(
     hls::stream<data_T> &data,
     hls::stream<res_T>  &res,
     typename CONFIG_T::depthwise_config::weight_t depthwise_weights[CONFIG_T::depthwise_config::filt_height * CONFIG_T::depthwise_config::filt_width * CONFIG_T::depthwise_config::n_chan],
