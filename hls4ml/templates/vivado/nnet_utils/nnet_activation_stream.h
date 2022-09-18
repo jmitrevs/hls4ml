@@ -844,7 +844,7 @@ void prelu(hls::stream<data_T> &data, typename data_T::value_type alpha[CONFIG_T
 }
 
 template<class data_T, class res_T, typename CONFIG_T>
-void prelu_ss(hls::stream<data_T> &data, typename data_T alpha[CONFIG_T::n_in], hls::stream<res_T> &res) {
+void prelu_ss(hls::stream<data_T> &data, data_T alpha[CONFIG_T::n_in], hls::stream<res_T> &res) {
     PReLUActLoop: for (int i = 0; i < CONFIG_T::n_in; i++) {
         #pragma HLS PIPELINE
 
