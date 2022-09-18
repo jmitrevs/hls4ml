@@ -50,6 +50,22 @@ void add(
         res.write(out_data);
     }
 }
+    
+template<class input1_T, class input2_T, class res_T, typename CONFIG_T>
+void add_ss(
+    hls::stream<input1_T> &data1,
+    hls::stream<input2_T> &data2,
+    hls::stream<res_T> &res)
+{   
+    AddLoop: for (int i = 0; i < CONFIG_T::n_elem; i++) {
+        #pragma HLS PIPELINE
+
+        input1_T in_data1 = data1.read();
+        input2_T in_data2 = data2.read();
+        res_T out_data = in_data1 + in_data2;       
+        res.write(out_data);
+    }
+}
 
 template<class input1_T, class input2_T, class res_T, typename CONFIG_T>
 void subtract(
