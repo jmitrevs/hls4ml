@@ -19,7 +19,7 @@ class PointwiseConv2D(Conv2D):
     pass
 
 pointwise_conv1d_function_template = 'nnet::pointwise_conv_1d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
-pointwise_conv2d_function_template = 'nnet::pointwise_conv_2d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
+pointwise_conv2d_function_template = 'nnet::pointwise_conv_2d_{data_format}_ss<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
 
 sepconv1d_include_list = ['nnet_utils/nnet_conv1d.h', 'nnet_utils/nnet_sepconv1d_stream.h']
 sepconv2d_include_list = ['nnet_utils/nnet_conv2d.h', 'nnet_utils/nnet_sepconv2d_stream.h']
