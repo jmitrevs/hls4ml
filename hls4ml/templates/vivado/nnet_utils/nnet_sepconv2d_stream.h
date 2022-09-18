@@ -207,7 +207,7 @@ void depthwise_ss_product(
 
     #pragma HLS ARRAY_PARTITION variable=mult complete
 
-    //int multiplier_limit  = ceil(float(CONFIG_T::kernel_size * CONFIG_T::n_chan) / float(CONFIG_T::reuse_factor)) - floor(float(CONFIG_T::n_zeros) / float(CONFIG_T::reuse_factor));
+    
 	
 	const int multfactor = MIN(CONFIG_T::n_in,CONFIG_T::reuse_factor);
     const int multiplier_limit = DIV_ROUNDUP(CONFIG_T::n_in*CONFIG_T::n_out, multfactor);
@@ -236,21 +236,17 @@ void depthwise_ss_product(
         }
     }
 
-    // Cast to "res_t" type
-    // Result: for(int ires = 0; ires < CONFIG_T::n_chan; ires++){
-        // #pragma HLS UNROLL
-        // res[ires] = cast<data_T, res_T, CONFIG_T>(acc[ires]);
-    // }
+    
 	for (int ires = 0; ires < CONFIG_T::n_out; ires++) {
         #pragma HLS UNROLL
-        //res[ires] = cast<data_T, res_T, CONFIG_T>(acc[ires]);
+        
         res_T tmp = acc[ires];
         res[ires] =  tmp;
     }
 }
 
 template <class data_T, class res_T, typename CONFIG_T>
-void depthwise_conv_2d_ss_cl(
+void depthwise_conv_2d_cl_ss(
     hls::stream<data_T> &data,
     hls::stream<res_T>  &res,
     typename CONFIG_T::weight_t weights[CONFIG_T::filt_height * CONFIG_T::filt_width * CONFIG_T::n_filt],
