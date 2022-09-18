@@ -117,7 +117,7 @@ conv2d_config_template = """struct config{index} : nnet::conv2d_config {{
 const ap_uint<config{index}::filt_height * config{index}::filt_width> config{index}::pixels[] = {{{instructions}}};\n"""
 
 conv2d_function_template = 'nnet::conv_2d_{data_format}_ss<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
-depthconv2d_function_template = 'nnet::depthwise_conv_2d_ss_{data_format}<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
+depthconv2d_function_template = 'nnet::depthwise_conv_2d_{data_format}_ss<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
 
 conv2d_include_list = ['nnet_utils/nnet_conv2d.h', 'nnet_utils/nnet_conv2d_stream.h']
 
@@ -169,7 +169,7 @@ sepconv_config_template = """struct config{index} {{
 }};\n"""
 
 sepconv1d_function_template = 'nnet::separable_conv_1d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output}, {d}, {p}, {z}, {b});'
-sepconv2d_function_template = 'nnet::separable_conv_2d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output}, {d}, {p}, {z}, {b});'
+sepconv2d_function_template = 'nnet::separable_conv_2d_{data_format}_ss<{input_t}, {output_t}, {config}>({input}, {output}, {d}, {p}, {z}, {b});'
 
 sepconv1d_include_list = ['nnet_utils/nnet_conv1d.h', 'nnet_utils/nnet_sepconv1d_stream.h']
 sepconv2d_include_list = ['nnet_utils/nnet_conv2d.h', 'nnet_utils/nnet_sepconv2d_stream.h']
