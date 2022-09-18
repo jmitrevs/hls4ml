@@ -101,6 +101,64 @@ void pointwise_conv_2d_cl(
     }
 }
 
+// Single Stream for PointWise Conv2d
+template<class data_T, class res_T, typename CONFIG_T>
+void pointwise_conv_2d_cl_ss(
+    hls::stream<data_T> &data,
+    hls::stream<res_T>  &res,
+    typename CONFIG_T::weight_t weights[CONFIG_T::n_chan * CONFIG_T::n_filt],
+    typename CONFIG_T::bias_t   biases[CONFIG_T::n_filt])
+{
+    assert(CONFIG_T::pad_top == 0 && CONFIG_T::pad_bottom == 0 && CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
+    assert(CONFIG_T::filt_height == 1 && CONFIG_T::filt_width == 1);
+	
+
+    #pragma HLS ARRAY_PARTITION variable=weights complete
+    #pragma HLS ARRAY_PARTITION variable=biases complete
+    
+    static data_T layer_in[CONFIG_T::n_chan];
+    #pragma HLS ARRAY_PARTITION variable=layer_in complete
+    
+    res_T layer_out[CONFIG_T::n_filt];
+    #pragma HLS ARRAY_PARTITION variable=layer_out complete
+    
+    ReadInputHeight: for (unsigned i_ih = 0; i_ih < CONFIG_T::in_height; i_ih++) {
+        ReadInputWidth: for (unsigned i_iw = 0; i_iw < CONFIG_T::in_width; i_iw++) {			
+			if (CONFIG_T::strategy == nnet::latency) {
+				  #pragma HLS PIPELINE II=CONFIG_T::reuse_factor
+			}
+			// full kernel
+			if (i_ih % CONFIG_T::stride_height == 0 && i_iw % CONFIG_T::stride_width == 0) {				
+				ReadInputChan: 
+				for (unsigned i_ic = 0; i_ic < CONFIG_T::n_chan; i_ic++) {
+					layer_in[i_ic] = data.read();				
+				}
+				// Dense
+				#pragma HLS INLINE region					
+				if (CONFIG_T::strategy == nnet::latency) {
+					dense_latency<data_T,res_T, typename CONFIG_T::mult_config>(layer_in, layer_out, weights, biases);
+				} 
+				else {
+					dense_large<data_T,res_T, typename CONFIG_T::mult_config>(layer_in, layer_out, weights, biases);
+				}
+				// Write output to stream when output ready
+				Pointwise2dCastLoop:
+				for (unsigned i_ic = 0; i_ic < CONFIG_T::n_filt; i_ic++) {
+					// #pragma HLS UNROLL
+					res_T out_data = layer_out[i_ic];
+					res.write(out_data);
+				}		
+						
+			}
+			// skip data
+			else {
+			  data.read();
+			}
+            
+        }
+    }
+}
+
 template<class data_T, class res_T, typename CONFIG_T>
 void separable_conv_2d_cl(
     hls::stream<data_T> &data,
