@@ -73,121 +73,7 @@ void depthwise_conv_2d_buffer_cl(
     }
 }
 
-
-template<class data_T, class res_T, typename CONFIG_T>
-void pointwise_conv_2d_cl(
-    hls::stream<data_T> &data,
-    hls::stream<res_T>  &res,
-    typename CONFIG_T::weight_t weights[CONFIG_T::n_chan * CONFIG_T::n_filt],
-    typename CONFIG_T::bias_t   biases[CONFIG_T::n_filt])
-{
-    assert(CONFIG_T::pad_top == 0 && CONFIG_T::pad_bottom == 0 && CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
-    assert(CONFIG_T::filt_height == 1 && CONFIG_T::filt_width == 1);
-
-    #pragma HLS ARRAY_PARTITION variable=weights complete
-    #pragma HLS ARRAY_PARTITION variable=biases complete
-
-    ReadInputHeight: for (unsigned i_ih = 0; i_ih < CONFIG_T::in_height; i_ih++) {
-        ReadInputWidth: for (unsigned i_iw = 0; i_iw < CONFIG_T::in_width / (data_T::size / CONFIG_T::n_chan); i_iw++) {
-            if (CONFIG_T::strategy == nnet::latency && data_T::size / CONFIG_T::n_chan == 1) {
-                #pragma HLS PIPELINE II=CONFIG_T::reuse_factor
-            }
-            if (i_ih % CONFIG_T::stride_height == 0 && i_iw % CONFIG_T::stride_width == 0) {
-                pointwise_mult_buffer<data_T, res_T, CONFIG_T>(data.read(), res, weights, biases);
-            } else {
-                data.read();
-            }
-        }
-    }
-}
-
-// Single Stream for PointWise Conv2d
-template<class data_T, class res_T, typename CONFIG_T>
-void pointwise_conv_2d_cl_ss(
-    hls::stream<data_T> &data,
-    hls::stream<res_T>  &res,
-    typename CONFIG_T::weight_t weights[CONFIG_T::n_chan * CONFIG_T::n_filt],
-    typename CONFIG_T::bias_t   biases[CONFIG_T::n_filt])
-{
-    assert(CONFIG_T::pad_top == 0 && CONFIG_T::pad_bottom == 0 && CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
-    assert(CONFIG_T::filt_height == 1 && CONFIG_T::filt_width == 1);
-	
-
-    #pragma HLS ARRAY_PARTITION variable=weights complete
-    #pragma HLS ARRAY_PARTITION variable=biases complete
-    
-    static data_T layer_in[CONFIG_T::n_chan];
-    #pragma HLS ARRAY_PARTITION variable=layer_in complete
-    
-    res_T layer_out[CONFIG_T::n_filt];
-    #pragma HLS ARRAY_PARTITION variable=layer_out complete
-    
-    ReadInputHeight: for (unsigned i_ih = 0; i_ih < CONFIG_T::in_height; i_ih++) {
-        ReadInputWidth: for (unsigned i_iw = 0; i_iw < CONFIG_T::in_width; i_iw++) {			
-			if (CONFIG_T::strategy == nnet::latency) {
-				  #pragma HLS PIPELINE II=CONFIG_T::reuse_factor
-			}
-			// full kernel
-			if (i_ih % CONFIG_T::stride_height == 0 && i_iw % CONFIG_T::stride_width == 0) {				
-				ReadInputChan: 
-				for (unsigned i_ic = 0; i_ic < CONFIG_T::n_chan; i_ic++) {
-					layer_in[i_ic] = data.read();				
-				}
-				// Dense
-				#pragma HLS INLINE region					
-				if (CONFIG_T::strategy == nnet::latency) {
-					dense_latency<data_T,res_T, typename CONFIG_T::mult_config>(layer_in, layer_out, weights, biases);
-				} 
-				else {
-					dense_large<data_T,res_T, typename CONFIG_T::mult_config>(layer_in, layer_out, weights, biases);
-				}
-				// Write output to stream when output ready
-				Pointwise2dCastLoop:
-				for (unsigned i_ic = 0; i_ic < CONFIG_T::n_filt; i_ic++) {
-					// #pragma HLS UNROLL
-					res_T out_data = layer_out[i_ic];
-					res.write(out_data);
-				}		
-						
-			}
-			// skip data
-			else {
-			  data.read();
-			}
-            
-        }
-    }
-}
-
-template<class data_T, class res_T, typename CONFIG_T>
-void separable_conv_2d_cl(
-    hls::stream<data_T> &data,
-    hls::stream<res_T>  &res,
-    typename CONFIG_T::depthwise_config::weight_t depthwise_weights[CONFIG_T::depthwise_config::filt_height * CONFIG_T::depthwise_config::filt_width * CONFIG_T::depthwise_config::n_chan],
-    typename CONFIG_T::pointwise_config::weight_t pointwise_weights[CONFIG_T::pointwise_config::n_chan * CONFIG_T::pointwise_config::n_filt],
-    typename CONFIG_T::depthwise_config::bias_t   depthwise_biases[CONFIG_T::depthwise_config::n_chan],
-    typename CONFIG_T::pointwise_config::bias_t   pointwise_biases[CONFIG_T::pointwise_config::n_filt]
-) {
-    #pragma HLS DATAFLOW
-
-    hls::stream<data_T> depthwise_res;
-    unsigned res_depth = CONFIG_T::depthwise_config::out_height * CONFIG_T::depthwise_config::out_width;
-    #pragma HLS STREAM variable=depthwise_res depth=res_depth
-
-    switch(CONFIG_T::depthwise_config::implementation){
-        case conv_implementation::linebuffer:
-            depthwise_conv_2d_buffer_cl<data_T, data_T, typename CONFIG_T::depthwise_config>(data, depthwise_res, depthwise_weights, depthwise_biases);
-            break;
-        case conv_implementation::encoded:
-            depthwise_conv_2d_encoded_cl<data_T, data_T, typename CONFIG_T::depthwise_config>(data, depthwise_res, depthwise_weights, depthwise_biases);
-            break;
-    } 
-
-    pointwise_conv_2d_cl<data_T, res_T, typename CONFIG_T::pointwise_config>(depthwise_res, res, pointwise_weights, pointwise_biases);
-}
-
 //Single stream for Depthwise Conv2d
-
 template<class data_T, class res_T, typename CONFIG_T>
 void depthwise_ss_product(
     data_T    data[CONFIG_T::n_in],
@@ -336,6 +222,140 @@ void depthwise_conv_2d_cl_ss(
 			sX = ((sX - lShiftX) == 0) ? sX - CONFIG_T::stride_width + 1 : sX + 1; 
 		}
 	}
+}
+	
+
+template<class data_T, class res_T, typename CONFIG_T>
+void pointwise_conv_2d_cl(
+    hls::stream<data_T> &data,
+    hls::stream<res_T>  &res,
+    typename CONFIG_T::weight_t weights[CONFIG_T::n_chan * CONFIG_T::n_filt],
+    typename CONFIG_T::bias_t   biases[CONFIG_T::n_filt])
+{
+    assert(CONFIG_T::pad_top == 0 && CONFIG_T::pad_bottom == 0 && CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
+    assert(CONFIG_T::filt_height == 1 && CONFIG_T::filt_width == 1);
+
+    #pragma HLS ARRAY_PARTITION variable=weights complete
+    #pragma HLS ARRAY_PARTITION variable=biases complete
+
+    ReadInputHeight: for (unsigned i_ih = 0; i_ih < CONFIG_T::in_height; i_ih++) {
+        ReadInputWidth: for (unsigned i_iw = 0; i_iw < CONFIG_T::in_width / (data_T::size / CONFIG_T::n_chan); i_iw++) {
+            if (CONFIG_T::strategy == nnet::latency && data_T::size / CONFIG_T::n_chan == 1) {
+                #pragma HLS PIPELINE II=CONFIG_T::reuse_factor
+            }
+            if (i_ih % CONFIG_T::stride_height == 0 && i_iw % CONFIG_T::stride_width == 0) {
+                pointwise_mult_buffer<data_T, res_T, CONFIG_T>(data.read(), res, weights, biases);
+            } else {
+                data.read();
+            }
+        }
+    }
+}
+
+// Single Stream for PointWise Conv2d
+template<class data_T, class res_T, typename CONFIG_T>
+void pointwise_conv_2d_cl_ss(
+    hls::stream<data_T> &data,
+    hls::stream<res_T>  &res,
+    typename CONFIG_T::weight_t weights[CONFIG_T::n_chan * CONFIG_T::n_filt],
+    typename CONFIG_T::bias_t   biases[CONFIG_T::n_filt])
+{
+    assert(CONFIG_T::pad_top == 0 && CONFIG_T::pad_bottom == 0 && CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
+    assert(CONFIG_T::filt_height == 1 && CONFIG_T::filt_width == 1);
+	
+
+    #pragma HLS ARRAY_PARTITION variable=weights complete
+    #pragma HLS ARRAY_PARTITION variable=biases complete
+    
+    static data_T layer_in[CONFIG_T::n_chan];
+    #pragma HLS ARRAY_PARTITION variable=layer_in complete
+    
+    res_T layer_out[CONFIG_T::n_filt];
+    #pragma HLS ARRAY_PARTITION variable=layer_out complete
+    
+    ReadInputHeight: for (unsigned i_ih = 0; i_ih < CONFIG_T::in_height; i_ih++) {
+        ReadInputWidth: for (unsigned i_iw = 0; i_iw < CONFIG_T::in_width; i_iw++) {			
+			if (CONFIG_T::strategy == nnet::latency) {
+				  #pragma HLS PIPELINE II=CONFIG_T::reuse_factor
+			}
+			// full kernel
+			if (i_ih % CONFIG_T::stride_height == 0 && i_iw % CONFIG_T::stride_width == 0) {				
+				ReadInputChan: 
+				for (unsigned i_ic = 0; i_ic < CONFIG_T::n_chan; i_ic++) {
+					layer_in[i_ic] = data.read();				
+				}
+				// Dense
+				#pragma HLS INLINE region					
+				if (CONFIG_T::strategy == nnet::latency) {
+					dense_latency<data_T,res_T, typename CONFIG_T::mult_config>(layer_in, layer_out, weights, biases);
+				} 
+				else {
+					dense_large<data_T,res_T, typename CONFIG_T::mult_config>(layer_in, layer_out, weights, biases);
+				}
+				// Write output to stream when output ready
+				Pointwise2dCastLoop:
+				for (unsigned i_ic = 0; i_ic < CONFIG_T::n_filt; i_ic++) {
+					// #pragma HLS UNROLL
+					res_T out_data = layer_out[i_ic];
+					res.write(out_data);
+				}		
+						
+			}
+			// skip data
+			else {
+			  data.read();
+			}
+            
+        }
+    }
+}
+
+template<class data_T, class res_T, typename CONFIG_T>
+void separable_conv_2d_cl(
+    hls::stream<data_T> &data,
+    hls::stream<res_T>  &res,
+    typename CONFIG_T::depthwise_config::weight_t depthwise_weights[CONFIG_T::depthwise_config::filt_height * CONFIG_T::depthwise_config::filt_width * CONFIG_T::depthwise_config::n_chan],
+    typename CONFIG_T::pointwise_config::weight_t pointwise_weights[CONFIG_T::pointwise_config::n_chan * CONFIG_T::pointwise_config::n_filt],
+    typename CONFIG_T::depthwise_config::bias_t   depthwise_biases[CONFIG_T::depthwise_config::n_chan],
+    typename CONFIG_T::pointwise_config::bias_t   pointwise_biases[CONFIG_T::pointwise_config::n_filt]
+) {
+    #pragma HLS DATAFLOW
+
+    hls::stream<data_T> depthwise_res;
+    unsigned res_depth = CONFIG_T::depthwise_config::out_height * CONFIG_T::depthwise_config::out_width;
+    #pragma HLS STREAM variable=depthwise_res depth=res_depth
+
+    switch(CONFIG_T::depthwise_config::implementation){
+        case conv_implementation::linebuffer:
+            depthwise_conv_2d_buffer_cl<data_T, data_T, typename CONFIG_T::depthwise_config>(data, depthwise_res, depthwise_weights, depthwise_biases);
+            break;
+        case conv_implementation::encoded:
+            depthwise_conv_2d_encoded_cl<data_T, data_T, typename CONFIG_T::depthwise_config>(data, depthwise_res, depthwise_weights, depthwise_biases);
+            break;
+    } 
+
+    pointwise_conv_2d_cl<data_T, res_T, typename CONFIG_T::pointwise_config>(depthwise_res, res, pointwise_weights, pointwise_biases);
+}
+
+// Single stream for Seperable Conv2d
+template<class data_T, class res_T, typename CONFIG_T>
+void separable_conv_2d_cl(
+    hls::stream<data_T> &data,
+    hls::stream<res_T>  &res,
+    typename CONFIG_T::depthwise_config::weight_t depthwise_weights[CONFIG_T::depthwise_config::filt_height * CONFIG_T::depthwise_config::filt_width * CONFIG_T::depthwise_config::n_chan],
+    typename CONFIG_T::pointwise_config::weight_t pointwise_weights[CONFIG_T::pointwise_config::n_chan * CONFIG_T::pointwise_config::n_filt],
+    typename CONFIG_T::depthwise_config::bias_t   depthwise_biases[CONFIG_T::depthwise_config::n_chan],
+    typename CONFIG_T::pointwise_config::bias_t   pointwise_biases[CONFIG_T::pointwise_config::n_filt]
+) {
+    #pragma HLS DATAFLOW
+	
+    // output stream for depthwise conv2d
+    hls::stream<data_T> depthwise_res;
+    #pragma HLS STREAM variable=depthwise_res depth=1
+
+    
+    depthwise_conv_2d_cl_ss<data_T, data_T, typename CONFIG_T::depthwise_config>(data, depthwise_res, depthwise_weights, depthwise_biases);
+    pointwise_conv_2d_cl_ss<data_T, res_T, typename CONFIG_T::pointwise_config>(depthwise_res, res, pointwise_weights, pointwise_biases);
 }
     
 }
