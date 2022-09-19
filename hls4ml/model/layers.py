@@ -514,7 +514,33 @@ class SeparableConv2D(Layer):
 
         self.add_bias(quantizer=self.get_attr('bias_quantizer'))
 
-class DepthwiseConv2D(Conv2D):
+class DepthwiseConv2D(Layer):
+    _expected_attributes = [
+        Attribute('in_height'),
+        Attribute('in_width'),
+
+        Attribute('out_height'),
+        Attribute('out_width'),
+
+        Attribute('n_chan'),
+        Attribute('n_filt'),
+
+        Attribute('filt_height'),
+        Attribute('filt_width'),
+        Attribute('stride_height'),
+        Attribute('stride_width'),
+
+        Attribute('pad_top'),
+        Attribute('pad_bottom'),
+        Attribute('pad_left'),
+        Attribute('pad_right'),
+
+        WeightAttribute('weight'),
+        WeightAttribute('bias'),
+
+        TypeAttribute('weight'),
+        TypeAttribute('bias'),
+    ]
     def initialize(self):
         if self.get_attr('data_format') == 'channels_last':
             shape = [self.attributes['out_height'], self.attributes['out_width'], self.attributes['n_chan']]
