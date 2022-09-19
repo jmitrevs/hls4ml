@@ -1,7 +1,7 @@
 import numpy as np
 
 from hls4ml.model.optimizer import OptimizerPass
-from hls4ml.model.layers import Conv1D, Conv2D, Dense, SeparableConv1D, SeparableConv2D, LSTM, GRU
+from hls4ml.model.layers import Conv1D, Conv2D, Dense, SeparableConv1D, SeparableConv2D, LSTM, GRU, DepthwiseConv2D
 
 class ApplyResourceStrategy(OptimizerPass):
     ''' Transposes the weights to use the dense_resource matrix multiply routine '''
@@ -16,6 +16,8 @@ class ApplyResourceStrategy(OptimizerPass):
     def transform(self, model, node):
         if isinstance(node, Dense):
             node.weights['weight'].data = np.transpose(node.weights['weight'].data)
+        elif isinstance(node, DepthwiseConv2D):
+            node.weights['weight'].data = np.transpose(node.weights['weight'].data, axes=[3, 0, 1, 2]) #(H,W,C,F) => (F,H,W,C)
         elif isinstance(node, Conv1D):
             node.weights['weight'].data = np.transpose(node.weights['weight'].data, axes=[2, 0, 1]) #(W,C,F) => (F,W,C)
         elif isinstance(node, SeparableConv1D):
