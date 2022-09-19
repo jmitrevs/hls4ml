@@ -196,8 +196,10 @@ class VivadoBackend(FPGABackend):
     def init_sepconv2d(self, layer):
         if layer.model.config.is_resource_strategy(layer):
             layer.set_attr('strategy', 'resource')
-            n_in, n_out = self.get_layer_mult_size(layer)
-            self.set_closest_reuse_factor(layer, n_in, n_out)
+            n_in_depthwise, n_out_depthwise = self.get_layer_mult_size(layer)
+            n_out_pointwise = n_out_depthwise
+            self.set_closest_reuse_factor(layer, n_in_depthwise, n_out_depthwise, 'reuse_factor_depthwise')
+            self.set_closest_reuse_factor(layer, n_out_depthwise, n_out_pointwise, 'reuse_factor_pointwise')
         else:
             layer.set_attr('strategy', 'latency')
         
