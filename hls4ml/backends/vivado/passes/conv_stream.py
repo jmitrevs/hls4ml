@@ -1,10 +1,10 @@
 from hls4ml.model.optimizer import OptimizerPass
-from hls4ml.model.layers import Conv1D, SeparableConv1D, Conv2D, SeparableConv2D
+from hls4ml.model.layers import Conv1D, SeparableConv1D, Conv2D, SeparableConv2D, DepthwiseConv2D
 
 class GenerateConvStreamingInstructions(OptimizerPass):
     ''' Generates the instructions for streaming implementation of CNNs '''
     def match(self, node):
-        return isinstance(node, (Conv1D, SeparableConv1D, Conv2D, SeparableConv2D))
+        return isinstance(node, (Conv1D, SeparableConv1D, Conv2D, SeparableConv2D, DepthwiseConv2D))
 
     def transform(self, model, node):
         node_class = node.__class__.__name__
