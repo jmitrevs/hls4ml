@@ -293,6 +293,7 @@ class SeparableConv2DConfigTemplate(LayerConfigTemplate):
         mult_params['n_in'] = node.get_attr('n_chan') * node.get_attr('filt_height') * node.get_attr('filt_width')
         mult_params['n_out'] = node.get_attr('n_chan')
         mult_params['weight_t'] = node.get_weights('depthwise').type
+        mult_params['reuse'] = node.get_attr('reuse_factor_depthwise')
         mult_params['product_type'] = get_backend('vivado').product_type(node.get_input_variable().type.precision, node.get_weights('depthwise').type.precision)
         depthwise_mult_config = self.depthwise_mult_template.format(**mult_params)
 
@@ -324,6 +325,7 @@ class SeparableConv2DConfigTemplate(LayerConfigTemplate):
         mult_params['n_in'] = node.get_attr('n_chan')
         mult_params['n_out'] = node.get_attr('n_filt')
         mult_params['weight_t'] = node.get_weights('pointwise').type
+        mult_params['reuse'] = node.get_attr('reuse_factor_pointwise')
         mult_params['product_type'] = get_backend('vivado').product_type(node.get_input_variable().type.precision, node.get_weights('pointwise').type.precision)
         pointwise_mult_config = self.pointwise_mult_template.format(**mult_params)
 
