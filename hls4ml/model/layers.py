@@ -485,6 +485,9 @@ class SeparableConv2D(Layer):
         Attribute('pad_left'),
         Attribute('pad_right'),
         
+        Attribute('reuse_factor_depthwise', default=1),
+        Attribute('reuse_factor_pointwise', default=1),
+        
         WeightAttribute('depthwise'),
         WeightAttribute('pointwise'),
         WeightAttribute('bias'),
