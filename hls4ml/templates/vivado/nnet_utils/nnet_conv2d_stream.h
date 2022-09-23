@@ -228,7 +228,7 @@ void cnnshift_apshiftreg(
             tmpinput[CONFIG_T::filt_height-i1-1][i0] = tmp;
         }
     }
-    shift_right_small<data_T,res_T,CONFIG_T>(tmpinput,output);
+    shift_right_small<data_T,data_T,CONFIG_T>(tmpinput,output);
 }
 
 template<class data_T, class res_T, typename CONFIG_T>
