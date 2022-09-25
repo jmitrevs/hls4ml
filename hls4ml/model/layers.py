@@ -302,6 +302,28 @@ class Dense(Layer):
         self.add_output_variable(shape, dims)
         self.add_weights(quantizer=self.get_attr('weight_quantizer'), compression=self.model.config.get_compression(self))
         self.add_bias(quantizer=self.get_attr('bias_quantizer'))
+        
+        # 2022 9 25
+        # accut_t precision equals to input precision + weight precision
+        accum = self.get_attr('accum_t')
+        accum_precision = accum.precision
+        input_precision = self.get_input_variable().type.precision
+        weight_precision = self.get_attr('weight').type.precision
+        
+        if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input_precision, weight_precision]):
+            print('use total accum_t bits in {}'.format(self.name))
+            # to lower the overflow
+            # total integer bits  = input integer bits + weights integer bits
+            # same as fraction bits
+            
+            accum_precision.integer =  input_precision.integer +  weight_precision.integer
+            accum_precision.width =  input_precision.width +  weight_precision.width
+            
+            accum_name = 'accum' + '{}_t'.format(self.index)
+            accum_t = NamedType(accum_name, accum_precision)
+                       
+            self.set_attr('accum_t', accum_t)
+            
 
 class Conv1D(Layer):
     _expected_attributes = [
@@ -418,6 +440,28 @@ class Conv2D(Layer):
         self.add_output_variable(shape, dims)
         self.add_weights(quantizer=self.get_attr('weight_quantizer'))
         self.add_bias(quantizer=self.get_attr('bias_quantizer'))
+        
+        # 2022 9 25
+        # accut_t precision equals to input precision + weight precision
+        accum = self.get_attr('accum_t')
+        accum_precision = accum.precision
+        input_precision = self.get_input_variable().type.precision
+        weight_precision = self.get_attr('weight').type.precision
+        
+        if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input_precision, weight_precision]):
+            print('use total accum_t bits in {}'.format(self.name))
+            # to lower the overflow
+            # total integer bits  = input integer bits + weights integer bits
+            # same as fraction bits
+            
+            accum_precision.integer =  input_precision.integer +  weight_precision.integer
+            accum_precision.width =  input_precision.width +  weight_precision.width
+            
+            accum_name = 'accum' + '{}_t'.format(self.index)
+            accum_t = NamedType(accum_name, accum_precision)
+                       
+            self.set_attr('accum_t', accum_t)
+            
 
 class Conv2DBatchnorm(Conv2D):
     def _get_folded_weights(self):
