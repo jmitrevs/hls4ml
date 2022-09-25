@@ -800,6 +800,12 @@ class BatchNormalization(Layer):
         beta = self.model.get_weights_data(self.name, 'beta')
         mean = self.model.get_weights_data(self.name, 'moving_mean')
         var = self.model.get_weights_data(self.name, 'moving_variance')
+        
+         # if trainable is false, gamma and beta are None initialy
+        if gamma is None:
+            gamma = 1
+        if beta is None:
+        	beta = 0
 
         scale = gamma / np.sqrt(var + self.get_attr('epsilon'))
         bias = beta - gamma * mean / np.sqrt(var + self.get_attr('epsilon'))
