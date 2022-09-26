@@ -273,8 +273,10 @@ void pointwise_conv_2d_cl_ss(
     res_T layer_out[CONFIG_T::n_filt];
     #pragma HLS ARRAY_PARTITION variable=layer_out complete
     
-    ReadInputHeight: for (unsigned i_ih = 0; i_ih < CONFIG_T::in_height; i_ih++) {
-        ReadInputWidth: for (unsigned i_iw = 0; i_iw < CONFIG_T::in_width; i_iw++) {			
+   	ReadInputHeight: 
+	for (unsigned i_ih = 0; i_ih < CONFIG_T::in_height; i_ih++) {
+        	ReadInputWidth: 
+		for (unsigned i_iw = 0; i_iw < CONFIG_T::in_width; i_iw++) {			
 			if (CONFIG_T::strategy == nnet::latency) {
 				  #pragma HLS PIPELINE II=CONFIG_T::reuse_factor
 			}
@@ -303,11 +305,13 @@ void pointwise_conv_2d_cl_ss(
 			}
 			// skip data
 			else {
-			  data.read();
+				SkipInputChan: 
+				for (unsigned i_ic = 0; i_ic < CONFIG_T::n_chan; i_ic++) {
+					data.read();				
+				}		  
 			}
-            
-        }
-    }
+        	}
+	}
 }
 
 template<class data_T, class res_T, typename CONFIG_T>
