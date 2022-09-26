@@ -7,6 +7,7 @@ from hls4ml.backends.template import LayerConfigTemplate, FunctionCallTemplate
 
 merge_config_template = """struct config{index} : nnet::merge_config {{
     static const unsigned n_elem = {n_elem};
+    typedef {accum_t.name} accum_t;
 }};\n"""
 
 merge_function_template = 'nnet::{merge}_ss<{input1_t}, {input2_t}, {output_t}, {config}>({input1}, {input2}, {output});'
