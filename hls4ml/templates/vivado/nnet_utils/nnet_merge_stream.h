@@ -62,7 +62,11 @@ void add_ss(
 
         input1_T in_data1 = data1.read();
         input2_T in_data2 = data2.read();
-        res_T out_data = in_data1 + in_data2;       
+        typename CONFIG_T::accum_t accum_data;
+        res_T out_data;
+         
+        accum_data = in_data1 + in_data2;  
+        out_data = (res_T) accum_data;
         res.write(out_data);
     }
 }
