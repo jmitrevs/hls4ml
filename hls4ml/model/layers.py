@@ -304,7 +304,7 @@ class Dense(Layer):
         self.add_bias(quantizer=self.get_attr('bias_quantizer'))
         
         # 2022 9 25
-        # accut_t precision equals to input precision + weight precision
+        # accum_t precision equals to input precision + weight precision
         accum = self.get_attr('accum_t')
         accum_precision = accum.precision
         input_precision = self.get_input_variable().type.precision
@@ -442,7 +442,7 @@ class Conv2D(Layer):
         self.add_bias(quantizer=self.get_attr('bias_quantizer'))
         
         # 2022 9 25
-        # accut_t precision equals to input precision + weight precision
+        # accum_t precision equals to input precision + weight precision
         accum = self.get_attr('accum_t')
         accum_precision = accum.precision
         input_precision = self.get_input_variable().type.precision
@@ -825,6 +825,27 @@ class Merge(Layer):
             shape = inp1.shape
             dims = inp1.dim_names
         self.add_output_variable(shape, dims)
+        
+        # 2022 9 26
+        # accum_t precision equals to input1 precision + input2 precision
+        accum = self.get_attr('accum_t')
+        accum_precision = accum.precision
+        input1_precision = inp1.type.precision
+        input2_precision = inp2.type.precision
+        
+        if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input1_precision, input2_precision]):
+            print('use total accum_t bits in {}'.format(self.name))
+            # to lower the overflow
+            # total integer bits  = input1 integer bits + input2 integer bits
+            # same as fraction bits
+            
+            accum_precision.integer =  input1_precision.integer +  input2_precision.integer
+            accum_precision.width =  input1_precision.width +  input2_precision.width
+            
+            accum_name = 'accum' + '{}_t'.format(self.index)
+            accum_t = NamedType(accum_name, accum_precision)
+                       
+            self.set_attr('accum_t', accum_t)
 
 class Dot(Merge):
     def initialize(self):
