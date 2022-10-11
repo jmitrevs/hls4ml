@@ -690,6 +690,27 @@ class GlobalPooling2D(Layer):
         dims = ['N_FILT_{}'.format(self.index)]
         self.add_output_variable(shape, dims)
         self.set_attr('pool_op', self.get_attr('class_name').split('Pooling')[0].replace('Global', ''))
+        
+        # 2022 
+        # accut_t precision equals to double of input precision
+        accum = self.get_attr('accum_t')
+        accum_precision = accum.precision
+        input_precision = self.get_input_variable().type.precision
+        
+        if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input_precision]):
+            print('use total accum_t bits in {}'.format(self.name))
+            # to lower the overflow
+            # total integer bits  = input integer bits *2
+            # same as fraction bits
+
+            accum_precision.integer =  input_precision.integer*2
+            accum_precision.width =  input_precision.width*2
+
+            accum_name = 'accum' + '{}_t'.format(self.index)
+            accum_t = NamedType(accum_name, accum_precision)
+
+            self.set_attr('accum_t', accum_t)
+            
 
 class ZeroPadding1D(Layer):
     _expected_attributes = [
