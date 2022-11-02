@@ -370,7 +370,9 @@ class DenseBatchnorm(Dense):
             self.weights['bias'].data = bias_q(folded_bias)
         else:
             self.weights['bias'].data = folded_bias
-            
+        
+        self.set_attr('n_in', self.get_input_variable().size()) 
+        
         # 2022 9 25
         # accum_t precision equals to input precision + weight precision
         accum = self.get_attr('accum_t')
