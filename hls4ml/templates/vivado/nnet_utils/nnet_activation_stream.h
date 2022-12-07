@@ -508,6 +508,7 @@ void softmax_legacy_ss(hls::stream<data_T> &data, hls::stream<res_T> &res) {
 
 template<class data_T, class res_T, typename CONFIG_T>
 void softmax_ss(hls::stream<data_T> &data, hls::stream<res_T> &res){
+	/*
     switch(CONFIG_T::implementation){
     case softmax_implementation::latency:	
         std::cout<<"use softmax latency"<< std::endl;
@@ -521,7 +522,9 @@ void softmax_ss(hls::stream<data_T> &data, hls::stream<res_T> &res){
 		std::cout<<"use softmax legacy"<< std::endl;
         softmax_legacy_ss<data_T, res_T, CONFIG_T>(data, res);
         break;
-    }    
+    } 
+    */
+    softmax_legacy_ss<data_T, res_T, CONFIG_T>(data, res);
 }
 
 // *************************************************
