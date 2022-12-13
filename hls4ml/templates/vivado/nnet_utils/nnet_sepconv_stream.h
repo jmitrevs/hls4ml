@@ -172,6 +172,42 @@ void pointwise_mult_buffer(
     res_stream.write(res_pack);
 }
 
+
+template<class data_T, class res_T, typename CONFIG_T>
+void pointwise_mult_buffer_ss(
+    hls::stream<data_T> &data_pack,
+    hls::stream<res_T> &res_stream,
+    typename CONFIG_T::weight_t weights[CONFIG_T::n_chan * CONFIG_T::n_filt],
+    typename CONFIG_T::bias_t biases[CONFIG_T::n_filt]
+) {
+    #pragma HLS INLINE
+
+    data_T data[CONFIG_T::n_chan];
+    #pragma HLS ARRAY_PARTITION variable=data complete
+
+    res_T res[CONFIG_T::n_filt];
+    #pragma HLS ARRAY_PARTITION variable=res complete
+
+    InitData: for (int id = 0; id < CONFIG_T::n_chan; id++) {
+        #pragma HLS PIPELINE II=1
+        data[id] = data_pack.read();
+    }
+
+    #pragma HLS INLINE region
+    if (CONFIG_T::strategy == nnet::latency) {
+        dense_latency<data_T, res_T, typename CONFIG_T::mult_config>(data, res, weights, biases);
+    } else {
+        dense_large<data_T, res_T, typename CONFIG_T::mult_config>(data, res, weights, biases);
+    }
+
+    CastLoop: for (unsigned jj = 0; jj < CONFIG_T::n_filt; jj++) {
+        #pragma HLS PIPELINE II=1
+        res_T res_pack = res[jj];
+        res_stream.write(res_pack);
+    }
+}
+
+
 // Line Buffer Implementation (Phil's)
 template<class data_T, class res_T, typename CONFIG_T>
 void compute_depthwise_output_buffer_1d(
