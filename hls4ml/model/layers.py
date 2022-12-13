@@ -1354,6 +1354,290 @@ class GarNetStack(GarNet):
 
         self._output_features = self.attributes['n_out_features'][-1]
 
+# deepcalo layers
+class FiLM(Layer):
+    def initialize(self):
+        assert(len(self.inputs) == 2),'require 2 inputs'
+        inp1 = self.get_input_variable(self.inputs[0]) 
+        inp2 = self.get_input_variable(self.inputs[1]) 
+
+        if len(inp1.shape) < len(inp2.shape): 
+           inp1,inp2 =  inp2,inp1   #inp1 is the image, inp2 is the scalar
+     
+        if len(inp2.shape) > 1:
+            raise Exception('ERROR: Scalar must be 1D')
+            
+        n_chan = inp1.shape[-1]
+        assert(int(2 *  n_chan)==inp2.shape[0]),'the length of the scalar should be twice of the n_channel'
+        
+        out_shape = inp1.shape
+        dims = ['N_OUTPUTS_{}_{}'.format(i, self.index) for i in range(1, len(out_shape) + 1)]       
+        self.add_output_variable(out_shape, dims)
+        
+        # 2022 9 25
+        # accum_t precision equals to input1 precision + input2 precision
+        accum = self.get_attr('accum_t')
+        accum_precision = accum.precision
+        input1_precision = inp1.type.precision
+        input2_precision = inp2.type.precision
+        
+        if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input1_precision, input2_precision]):
+            print('use total accum_t bits in {}'.format(self.name))
+            # to lower the overflow
+            # total integer bits  = input integer bits + weights integer bits
+            # same as fraction bits
+            
+            accum_precision.integer =  input1_precision.integer +  input2_precision.integer
+            accum_precision.width =  input1_precision.width +  input2_precision.width
+            
+            accum_name = 'accum' + '{}_t'.format(self.index)
+            accum_t = NamedType(accum_name, accum_precision)
+                       
+            self.set_attr('accum_t', accum_t)
+            
+
+class Mask_track(Layer):
+    def initialize(self):
+        inp = self.get_input_variable()  
+        shape = inp.shape 
+        assert(len(shape)==2),'input shape(without batch) should be rank 2'  
+        out_shape = shape[:1]+[1] 
+        dims = ['N_OUTPUTS_{}_{}'.format(i, self.index) for i in range(1, len(out_shape) + 1)]
+        
+        self.add_output_variable(out_shape, dims)
+
+
+class Sum1D(Layer):
+    def initialize(self):
+        inp = self.get_input_variable()  
+        shape = inp.shape 
+        assert(len(shape)>=1),'input shape(without batch) should be larger than rank 0'
+        assert(len(shape)<3), "input shape(without batch) over rank 2 isn't supported yet"
+        if len(shape) == 1:
+            out_shape = [1]
+        else:
+            out_shape = shape[1:]
+        dims = ['N_OUTPUTS_{}_{}'.format(i, self.index) for i in range(1, len(out_shape) + 1)]
+        
+        self.add_output_variable(out_shape, dims)
+        
+        # 2022 9 25
+        # accum_t precision equals to input precision + input precision
+        accum = self.get_attr('accum_t')
+        accum_precision = accum.precision
+        input_precision = inp.type.precision
+        
+        if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input_precision]):            
+            
+            accum_precision.integer =  input_precision.integer * 2
+            accum_precision.width =  input_precision.width * 2
+            
+            accum_name = 'accum' + '{}_t'.format(self.index)
+            accum_t = NamedType(accum_name, accum_precision)
+                       
+            self.set_attr('accum_t', accum_t)
+            print('use {} for accum_t in {}'.format(accum_t, self.name))
+        
+
+class Slice_tensor1D(Layer):
+    def initialize(self):
+        start = self.get_attr('start')
+        end =  self.get_attr('end')
+        assert(start < end),'end point should larger than start'        
+        out_shape = self.get_input_variable().shape[:]
+        out_shape[0] = end-start
+        dims = ['N_OUTPUTS_{}_{}'.format(i, self.index) for i in range(1, len(out_shape) + 1)]        
+        self.add_output_variable(out_shape, dims)
+
+        
+class TimeDistributed(Layer):
+    _expected_attributes = [
+        Attribute('n_timesteps'),
+        
+        # QDenseBatchnorm1
+        Attribute('n_in'),
+        Attribute('n_hid'),
+
+        WeightAttribute('d_weight1'),
+        WeightAttribute('d_bias1'),
+
+        TypeAttribute('d_weight1'),
+        TypeAttribute('d_bias1'),
+               
+        # QDenseBatchnorm2
+        Attribute('n_out'),
+
+        WeightAttribute('d_weight2'),
+        WeightAttribute('d_bias2'),
+
+        TypeAttribute('d_weight2'), 
+        TypeAttribute('d_bias2'),       
+    ]
+    
+    def _get_folded_weights(self, kernel, bias, gamma, beta, moving_mean, moving_variance, epsilon):
+        """
+        Function to get the batchnorm folded weights.
+        This function converts the weights by folding batchnorm parameters into
+        the weight of QDense. The high-level equation:
+        W_fold = gamma * W / sqrt(variance + epsilon)
+        bias_fold = gamma * (bias - moving_mean) / sqrt(variance + epsilon) + beta
+        """
+        
+        if bias is None:
+            bias = 0
+
+        # get the inversion factor so that we replace division by multiplication
+        inv = np.reciprocal(np.sqrt(moving_variance + epsilon))
+        
+        print("moving_variance: ", moving_variance)
+        if gamma is not None:
+            inv *= gamma
+
+        # wrap conv kernel and bias with bn parameters
+        folded_kernel = inv * kernel
+        folded_bias = inv * (bias - moving_mean) + beta
+        return [folded_kernel, folded_bias]
+        
+    def initialize(self):
+        shape = self.get_input_variable().shape[:]
+        shape[-1] = self.attributes['n_out']        
+        dims = ['N_LAYER_{}_{}'.format(i, self.index) for i in range(1, len(shape) + 1)]
+        self.add_output_variable(shape, dims)
+        keras_model = self.model.reader.model
+        layer = keras_model.get_layer(self.name)
+        
+        # get weights by names
+        kernel_weights_list = []
+        bias_weights_list = []
+        gamma_weights_list = []
+        beta_weights_list = []
+        mean_weights_list = []
+        var_weights_list = [] 
+        
+        for w in layer.weights:
+            w_name = w.name
+            if "kernel" in w_name:
+                kernel_weights_list.append(w.numpy())
+            elif "bias" in w_name:
+                bias_weights_list.append(w.numpy())
+            elif "gamma" in w_name:
+                gamma_weights_list.append(w.numpy())
+            elif "beta" in w_name:
+                beta_weights_list.append(w.numpy())
+            elif "mean" in w_name:
+                mean_weights_list.append(w.numpy())
+            elif "var" in w_name:
+                var_weights_list.append(w.numpy())
+        
+        # DenseBatchNorm1 
+        # d_weight1 = layer.weights[0].numpy()
+        # d_bias1 = None
+        # gamma1 = layer.weights[1].numpy()
+        # beta1 = layer.weights[2].numpy()        
+        # mean1 = layer.weights[7].numpy()
+        # var1 = layer.weights[8].numpy()
+        d_weight1 = kernel_weights_list[0] if len(kernel_weights_list) else None
+        d_bias1 = bias_weights_list[0] if len(bias_weights_list) else None
+        gamma1 = gamma_weights_list[0] if len(gamma_weights_list) else None
+        beta1 = beta_weights_list[0] if len(beta_weights_list) else None
+        mean1 = mean_weights_list[0] if len(mean_weights_list) else None
+        var1 = var_weights_list[0] if len(var_weights_list) else None
+        epsilon1 = self.get_attr('epsilon1')
+        
+        folded_weights1, folded_bias1 = self._get_folded_weights(d_weight1, d_bias1, gamma1, beta1, mean1, var1, epsilon1)
+        
+        weight_quantizer1 = self.get_attr('weight_quantizer1')
+        self.add_weights_variable(name='d_weight1', var_name='w1_{index}', data=folded_weights1, quantizer=weight_quantizer1, compression=self.model.config.get_compression(self))
+        if self.model.config.is_resource_strategy(self) and self.model.config.backend.name in ['Vivado', 'VivadoAccelerator']:
+            self.weights['d_weight1'].data_unquantized = np.transpose(folded_weights1)
+            self.weights['d_weight1'].data = weight_quantizer1(self.weights['d_weight1'].data_unquantized)
+
+
+        else:
+            self.weights['d_weight1'].data_unquantized = folded_weights1
+            self.weights['d_weight1'].data = weight_quantizer1(folded_weights1)
+        
+        bias_q1 = self.get_attr('bias_quantizer1')          
+        self.add_weights_variable(name='d_bias1', var_name='b1_{index}', data=folded_bias1, quantizer=bias_q1)
+        self.weights['d_bias1'].data_unquantized = folded_bias1
+        
+        if bias_q1 is not None:
+            self.weights['d_bias1'].data = bias_q1(folded_bias1)
+        else:
+            self.weights['d_bias1'].data = folded_bias1
+        
+        # DenseBatchNorm2 
+        d_weight2 = kernel_weights_list[1] if len(kernel_weights_list) else None
+        d_bias2 = bias_weights_list[1] if len(bias_weights_list) else None
+        gamma2 = gamma_weights_list[1] if len(gamma_weights_list) else None
+        beta2 = beta_weights_list[1] if len(beta_weights_list) else None
+        mean2 = mean_weights_list[1] if len(mean_weights_list) else None
+        var2 = var_weights_list[1] if len(var_weights_list) else None
+        # d_weight2 = layer.weights[3].numpy()
+        # d_bias2 = None
+        # gamma2 = layer.weights[4].numpy()
+        # beta2 = layer.weights[5].numpy()
+        
+        # mean2 = layer.weights[10].numpy()
+        # var2 = layer.weights[11].numpy()
+        epsilon2 = self.get_attr('epsilon2')
+        
+        folded_weights2, folded_bias2 = self._get_folded_weights(d_weight2, d_bias2, gamma2, beta2, mean2, var2, epsilon2)
+        weight_quantizer2 = self.get_attr('weight_quantizer2')
+        
+        self.add_weights_variable(name='d_weight2', var_name='w2_{index}', data=folded_weights2, quantizer=weight_quantizer2, compression=self.model.config.get_compression(self))
+        if self.model.config.is_resource_strategy(self) and self.model.config.backend.name in ['Vivado', 'VivadoAccelerator']:
+            self.weights['d_weight2'].data_unquantized = np.transpose(folded_weights2)
+            self.weights['d_weight2'].data = weight_quantizer2(self.weights['d_weight2'].data_unquantized)
+
+        else:
+            self.weights['d_weight2'].data_unquantized = folded_weights2
+            self.weights['d_weight2'].data = weight_quantizer2(folded_weights2)
+            
+        bias_q2 = self.get_attr('bias_quantizer2')    
+        self.add_weights_variable(name='d_bias2', var_name='b2_{index}', data=folded_bias2, quantizer=bias_q2)
+        self.weights['d_bias2'].data_unquantized = folded_bias2
+        
+        if bias_q2 is not None:
+            self.weights['d_bias2'].data = bias_q2(folded_bias2)
+        else:
+            self.weights['d_bias2'].data = folded_bias2
+            
+        
+        # 2022 9 25
+        # accum_t precision equals to input precision + weight precision
+        accum = self.get_attr('accum_t')
+        accum_precision = accum.precision
+        input_precision = self.get_input_variable().type.precision
+        weight_precision1 = self.get_attr('d_weight1').type.precision
+        weight_precision2 = self.get_attr('d_weight2').type.precision        
+
+        
+        if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input_precision, weight_precision1, weight_precision2]):
+            print('use total accum_t bits in {}'.format(self.name))
+            # to lower the overflow
+            # total integer bits  = input integer bits + weights integer bits
+            # same as fraction bits
+            
+            # for first accum
+            accum_precision.integer =  input_precision.integer +  weight_precision1.integer
+            accum_precision.width =  input_precision.width +  weight_precision1.width
+            
+            accum_name = 'accum' + '{}_t'.format(self.index)
+            accum_t = NamedType(accum_name, accum_precision)
+                       
+            self.set_attr('accum_t', accum_t)
+            
+            # for second accum
+            accum_precision.integer =  input_precision.integer +  weight_precision2.integer
+            accum_precision.width =  input_precision.width +  weight_precision2.width
+            
+            accum_name = 'accum1' + '{}_t'.format(self.index)
+            accum1_t = NamedType(accum_name, accum_precision)
+            
+            self.set_attr('accum1_t', accum1_t)
+            
+
 layer_map = {
     'Input'                  : Input,
     'InputLayer'             : Input,
@@ -1405,6 +1689,11 @@ layer_map = {
     'GRU'                    : GRU,
     'GarNet'                 : GarNet,
     'GarNetStack'            : GarNetStack,
+    'FiLM'                   : FiLM,
+    'Mask_track'             : Mask_track,
+    'Sum1D'                  : Sum1D,
+    'Slice_tensor1D'         : Slice_tensor1D,
+    'TimeDistributed'        : TimeDistributed,
     # TensorFlow-specific layers:
     'BiasAdd'                : BiasAdd,
 }
