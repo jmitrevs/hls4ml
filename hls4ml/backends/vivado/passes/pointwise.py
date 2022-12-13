@@ -6,7 +6,7 @@ from hls4ml.model.layers import register_layer
 from hls4ml.backends.fpga.fpga_layers import PointwiseConv1D, PointwiseConv2D
 from hls4ml.backends.vivado.passes.convolution_templates import Conv1DConfigTemplate, Conv1DFunctionTemplate, Conv2DConfigTemplate, Conv2DFunctionTemplate, conv1d_config_template, conv2d_config_template, conv_mult_config_template
 
-pointwise_conv1d_function_template = 'nnet::pointwise_conv_1d_{data_format}<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
+pointwise_conv1d_function_template = 'nnet::pointwise_conv_1d_{data_format}_ss<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
 pointwise_conv2d_function_template = 'nnet::pointwise_conv_2d_{data_format}_ss<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
 
 sepconv1d_include_list = ['nnet_utils/nnet_conv1d.h', 'nnet_utils/nnet_sepconv1d_stream.h']
