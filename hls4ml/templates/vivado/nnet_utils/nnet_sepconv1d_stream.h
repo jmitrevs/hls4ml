@@ -87,6 +87,34 @@ void pointwise_conv_1d_cl(
 
 
 template<class data_T, class res_T, typename CONFIG_T>
+void pointwise_conv_1d_cl_ss(
+    hls::stream<data_T> &data,
+    hls::stream<res_T>  &res,
+    typename CONFIG_T::weight_t weights[CONFIG_T::n_chan * CONFIG_T::n_filt],
+    typename CONFIG_T::bias_t   biases[CONFIG_T::n_filt])
+{
+    assert(CONFIG_T::pad_left == 0 && CONFIG_T::pad_right == 0);
+    assert(CONFIG_T::filt_width == 1);
+
+    #pragma HLS ARRAY_PARTITION variable=weights complete
+    #pragma HLS ARRAY_PARTITION variable=biases complete
+
+    ReadInputWidth: for (unsigned i_iw = 0; i_iw < CONFIG_T::in_width; i_iw++) {
+        if (CONFIG_T::strategy == nnet::latency &&  CONFIG_T::n_chan == 1) {
+            #pragma HLS PIPELINE II=CONFIG_T::reuse_factor
+        }
+        if (i_iw % CONFIG_T::stride_width == 0) {
+            pointwise_mult_buffer_ss<data_T, res_T, CONFIG_T>(data, res, weights, biases);
+        } else {
+            for(unsigned i = 0; i < CONFIG_T::n_chan; i++){
+                #pragma HLS PIPELINE II=1
+                data.read();
+            }
+        }
+    }
+}
+    
+template<class data_T, class res_T, typename CONFIG_T>
 void separable_conv_1d_cl(
     hls::stream<data_T> &data,
     hls::stream<res_T>  &res,
