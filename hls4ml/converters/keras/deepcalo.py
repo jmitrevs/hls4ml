@@ -39,18 +39,9 @@ def parse_sum1d_layer(keras_layer, input_names, input_shapes, data_reader, confi
     assert(keras_layer["class_name"] == 'Sum1D')
 
     layer = parse_default_keras_layer(keras_layer, input_names)
-    print('\n' * 10)
-    print("Sum1D shape: ", input_shapes[:])
-    print('\n' * 10)
     
     # input shape: [[None, 76, 128]]
-
     output_shape = [input_shapes[0][0], input_shapes[0][-1]]
-   
-    
-    print('\n' * 10)
-    print("Sum1D out shape: ", output_shape)
-    print('\n' * 10)
     
     return layer, output_shape
 
