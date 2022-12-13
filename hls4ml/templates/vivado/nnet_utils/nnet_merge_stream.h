@@ -121,6 +121,29 @@ void multiply(
     }
 }
 
+
+template<class input1_T, class input2_T, class res_T, typename CONFIG_T>
+void multiply_ss(
+    hls::stream<input1_T> &data1,
+    hls::stream<input2_T> &data2,
+    hls::stream<res_T> &res)
+{
+    typename CONFIG_T::accum_t accum_data;
+	res_T out_data;
+	
+    MultiplyLoop: for (int i = 0; i < CONFIG_T::n_elem; i++) {
+        #pragma HLS PIPELINE II=1
+       
+        input1_T in_data1 = data1.read();
+        input2_T in_data2 = data2.read();
+        accum_data = in_data1 * in_data2;
+		out_data = (res_T) accum_data;
+        res.write(out_data);
+    }
+}
+
+
+
 template<class input1_T, class input2_T, class res_T, typename CONFIG_T>
 void average(
     hls::stream<input1_T> &data1,
