@@ -446,6 +446,32 @@ void concatenate1d(
     }
     res.write(out_data);
 }
+	
+
+template<class input1_T, class input2_T, class res_T, typename CONFIG_T>
+void concatenate1d_ss(
+    hls::stream<input1_T> &data1,
+    hls::stream<input2_T> &data2,
+    hls::stream<res_T> &res)
+{
+    res_T out_data[CONFIG_T::n_elem1_0+CONFIG_T::n_elem2_0];
+    ConcatLoop1: for (int i = 0; i < CONFIG_T::n_elem1_0; i++) {
+        #pragma HLS PIPELINE II=1
+        input1_T in_data1 = data1.read();
+            out_data[i] = in_data1;
+    }
+    ConcatLoop2: for (int i = 0; i < CONFIG_T::n_elem2_0; i++) {
+        #pragma HLS PIPELINE II=1
+        input2_T in_data2 = data2.read();
+            out_data[CONFIG_T::n_elem1_0 + i] = in_data2;
+    }
+    OutputLoop: for (int i = 0; i < CONFIG_T::n_elem1_0+CONFIG_T::n_elem2_0; i++) {
+        #pragma HLS PIPELINE II=1
+        res.write(out_data[i]);
+    }
+}
+
+
 }
 
 #endif
