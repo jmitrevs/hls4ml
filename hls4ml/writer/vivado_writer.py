@@ -93,7 +93,7 @@ class VivadoWriter(Writer):
             return template.format(mode=mode.upper(), name=variable.name, type=typ, factor=factor, dim=0)
 
         elif mode == 'stream':
-            return '#pragma HLS STREAM variable={name} depth={depth}'.format(name=variable.name, depth=1)
+            return '#pragma HLS STREAM variable={name} depth={depth}'.format(name=variable.name, depth=depth)
 
     def write_project_cpp(self, model):
         ###################
