@@ -265,6 +265,7 @@ class TimeDistributedConfigTemplate(LayerConfigTemplate):
         mult1_params['accum_t'] = node.get_attr('accum_t')
         mult1_params['bias_t'] = node.get_weights('d_bias1').type
         mult1_params['weight_t'] = node.get_weights('d_weight1').type
+        mult1_params['reuse'] = node.get_attr('dense1_reuse_factor')
         mult1_config = self.mult1_template.format(**mult1_params)
         
         # dense2 config
@@ -277,6 +278,7 @@ class TimeDistributedConfigTemplate(LayerConfigTemplate):
         mult2_params['accum_t'] = node.get_attr('accum1_t')
         mult2_params['bias_t'] = node.get_weights('d_bias2').type
         mult2_params['weight_t'] = node.get_weights('d_weight2').type
+        mult2_params['reuse'] = node.get_attr('dense2_reuse_factor')
         mult2_config = self.mult2_template.format(**mult2_params)
         
         #  relu1 config
