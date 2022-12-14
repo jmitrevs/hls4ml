@@ -148,7 +148,12 @@ class VivadoBackend(FPGABackend):
         if layer.model.config.is_resource_strategy(layer):
             n_in, n_out = self.get_layer_mult_size(layer)
             self.set_target_reuse_factor(layer)
-            self.set_closest_reuse_factor(layer, n_in, n_out)
+            
+            # 2022 12 
+            # For Dense_ss
+            self.set_closest_reuse_factor_nout(layer, n_out)
+            #self.set_closest_reuse_factor(layer, n_in, n_out)
+            
             if compression:
                 layer.set_attr('strategy', 'compressed')
                 index_t = layer.get_weights('weight').type.index_precision
@@ -157,7 +162,16 @@ class VivadoBackend(FPGABackend):
         else:
             layer.set_attr('strategy', 'latency')
         layer.set_attr('index_t', NamedType('layer{}_index'.format(layer.index), index_t))
-
+    
+    @layer_optimizer(TimeDistributed)
+    def init_timedistributed(self, layer):
+        reuse_factor = layer.model.config.get_reuse_factor(layer)
+        layer.set_attr('dense1_reuse_factor', reuse_factor)
+        layer.set_attr('dense2_reuse_factor', reuse_factor)
+        n_in, n_hid, n_out = self.get_layer_mult_size(layer)
+        self.set_closest_reuse_factor_nout(layer, n_hid, attribute='dense1_reuse_factor')
+        self.set_closest_reuse_factor_nout(layer, n_out, attribute='dense2_reuse_factor')
+        
     #TODO consolidate these functions into a single `init_conv`
     @layer_optimizer(Conv1D)
     def init_conv1d(self, layer):
