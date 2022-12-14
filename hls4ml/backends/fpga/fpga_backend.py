@@ -103,8 +103,55 @@ class FPGABackend(Backend):
             n_out_recr = n_out
             return n_in, n_out, n_in_recr, n_out_recr
         
+        # 2022 12
+        if 'TimeDistributed' in layer.class_name:
+            n_in = layer.get_attr('n_in')
+            n_hid = layer.get_attr('n_hid')
+            n_out = layer.get_attr('n_out')
+            return n_in, n_hid, n_out
+        
         raise Exception(f'Cannot get mult size for layer {layer.name} ({layer.class_name})')
+    
+    # 2022 12
+    # For Dense_ss , rf is chosen based on nout only---------------------------------------------
+    def get_valid_reuse_factors_nout(self, n_out, layer):
+        max_rf = n_out
+        valid_reuse_factors = []
+        for rf in range(1, max_rf + 1):
+            _assert = self._validate_reuse_factor_nout(n_out, rf, layer)
+            if _assert:
+                valid_reuse_factors.append(rf)
+        return valid_reuse_factors
 
+    def _validate_reuse_factor_nout(self, n_out, rf, layer):
+        
+        # take the input_precision into account 
+        input_precision = layer.get_input_variable().type.precision.width
+        
+        _assert = (((n_out) % rf) == 0)
+        
+        block_factor = int(math.ceil((n_out) / float(rf)))
+        _assert = _assert and (input_precision * block_factor) < 65536
+            
+        return _assert
+        
+    def set_closest_reuse_factor_nout(self, layer, n_out, attribute='reuse_factor'):
+        assert attribute is not None, 'Reuse factor attribute cannot be None'
+                
+        valid_rf = self.get_valid_reuse_factors_nout(n_out, layer)
+        chosen_rf = layer.get_attr(attribute)
+        
+        if chosen_rf not in valid_rf:
+            closest_rf = self.get_closest_reuse_factor(valid_rf, chosen_rf)
+            
+            # 2022 CHIRUI USE 2ND MAX RF
+            #closest_rf = valid_rf[-2]
+            
+            print('WARNING: Invalid ReuseFactor={} in layer "{}". Using ReuseFactor={} instead. Valid ReuseFactor(s): {}.'
+                .format(chosen_rf, layer.name, closest_rf, ','.join(map(str, valid_rf))))
+            layer.set_attr(attribute, closest_rf)
+    #-----------------------------------------------------------------------------------------------    
+    
     def get_valid_reuse_factors(self, n_in, n_out, layer):
         max_rf = n_in * n_out
         valid_reuse_factors = []
