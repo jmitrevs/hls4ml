@@ -330,13 +330,15 @@ class Dense(Layer):
         weight_precision = self.get_attr('weight').type.precision
         
         if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input_precision, weight_precision]):
-            print('use total accum_t bits in {}'.format(self.name))
+            
             # to lower the overflow
             # total integer bits  = input integer bits + weights integer bits
             # same as fraction bits
             
             accum_precision.integer =  input_precision.integer +  weight_precision.integer
             accum_precision.width =  input_precision.width +  weight_precision.width
+            
+            print('use <{},{}> accum_t bits in {}'.format(accum_precision.width, accum_precision.integer, self.name))
             
             accum_name = 'accum' + '{}_t'.format(self.index)
             accum_t = NamedType(accum_name, accum_precision)
@@ -403,13 +405,14 @@ class DenseBatchnorm(Dense):
         weight_precision = self.get_attr('weight').type.precision
         
         if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input_precision, weight_precision]):
-            print('use total accum_t bits in {}'.format(self.name))
+            
             # to lower the overflow
             # total integer bits  = input integer bits + weights integer bits
             # same as fraction bits
             
             accum_precision.integer =  input_precision.integer +  weight_precision.integer
             accum_precision.width =  input_precision.width +  weight_precision.width
+            print('use <{},{}> accum_t bits in {}'.format(accum_precision.width, accum_precision.integer, self.name))
             
             accum_name = 'accum' + '{}_t'.format(self.index)
             accum_t = NamedType(accum_name, accum_precision)
@@ -541,13 +544,15 @@ class Conv2D(Layer):
         weight_precision = self.get_attr('weight').type.precision
         
         if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input_precision, weight_precision]):
-            print('use total accum_t bits in {}'.format(self.name))
+            
             # to lower the overflow
             # total integer bits  = input integer bits + weights integer bits
             # same as fraction bits
             
             accum_precision.integer =  input_precision.integer +  weight_precision.integer
             accum_precision.width =  input_precision.width +  weight_precision.width
+            
+            print('use <{},{}> accum_t bits in {}'.format(accum_precision.width, accum_precision.integer, self.name))
             
             accum_name = 'accum' + '{}_t'.format(self.index)
             accum_t = NamedType(accum_name, accum_precision)
@@ -1385,7 +1390,7 @@ class FiLM(Layer):
         input2_precision = inp2.type.precision
         
         if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input1_precision, input2_precision]):
-            print('use total accum_t bits in {}'.format(self.name))
+            
             # to lower the overflow
             # total integer bits  = input integer bits + weights integer bits
             # same as fraction bits
@@ -1393,6 +1398,8 @@ class FiLM(Layer):
             accum_precision.integer =  input1_precision.integer +  input2_precision.integer
             accum_precision.width =  input1_precision.width +  input2_precision.width
             
+            print('use <{},{}> accum_t bits in {}'.format(accum_precision.width, accum_precision.integer, self.name))
+                
             accum_name = 'accum' + '{}_t'.format(self.index)
             accum_t = NamedType(accum_name, accum_precision)
                        
@@ -1435,11 +1442,13 @@ class Sum1D(Layer):
             accum_precision.integer =  input_precision.integer * 2
             accum_precision.width =  input_precision.width * 2
             
+            print('use <{},{}> accum_t bits in {}'.format(accum_precision.width, accum_precision.integer, self.name))
+                
             accum_name = 'accum' + '{}_t'.format(self.index)
             accum_t = NamedType(accum_name, accum_precision)
                        
             self.set_attr('accum_t', accum_t)
-            print('use {} for accum_t in {}'.format(accum_t, self.name))
+            
         
 
 class Slice_tensor1D(Layer):
@@ -1492,7 +1501,6 @@ class TimeDistributed(Layer):
         # get the inversion factor so that we replace division by multiplication
         inv = np.reciprocal(np.sqrt(moving_variance + epsilon))
         
-        print("moving_variance: ", moving_variance)
         if gamma is not None:
             inv *= gamma
 
@@ -1533,12 +1541,6 @@ class TimeDistributed(Layer):
                 var_weights_list.append(w.numpy())
         
         # DenseBatchNorm1 
-        # d_weight1 = layer.weights[0].numpy()
-        # d_bias1 = None
-        # gamma1 = layer.weights[1].numpy()
-        # beta1 = layer.weights[2].numpy()        
-        # mean1 = layer.weights[7].numpy()
-        # var1 = layer.weights[8].numpy()
         d_weight1 = kernel_weights_list[0] if len(kernel_weights_list) else None
         d_bias1 = bias_weights_list[0] if len(bias_weights_list) else None
         gamma1 = gamma_weights_list[0] if len(gamma_weights_list) else None
@@ -1570,12 +1572,6 @@ class TimeDistributed(Layer):
             self.weights['d_bias1'].data = folded_bias1
         
         # DenseBatchNorm2 
-        d_weight2 = kernel_weights_list[1] if len(kernel_weights_list) else None
-        d_bias2 = bias_weights_list[1] if len(bias_weights_list) else None
-        gamma2 = gamma_weights_list[1] if len(gamma_weights_list) else None
-        beta2 = beta_weights_list[1] if len(beta_weights_list) else None
-        mean2 = mean_weights_list[1] if len(mean_weights_list) else None
-        var2 = var_weights_list[1] if len(var_weights_list) else None
         # d_weight2 = layer.weights[3].numpy()
         # d_bias2 = None
         # gamma2 = layer.weights[4].numpy()
@@ -1617,7 +1613,7 @@ class TimeDistributed(Layer):
 
         
         if all(isinstance(i, FixedPrecisionType) for i in [accum_precision, input_precision, weight_precision1, weight_precision2]):
-            print('use total accum_t bits in {}'.format(self.name))
+            
             # to lower the overflow
             # total integer bits  = input integer bits + weights integer bits
             # same as fraction bits
@@ -1625,6 +1621,8 @@ class TimeDistributed(Layer):
             # for first accum
             accum_precision.integer =  input_precision.integer +  weight_precision1.integer
             accum_precision.width =  input_precision.width +  weight_precision1.width
+            
+            print('use <{},{}> accum_t bits in {}'.format(accum_precision.width, accum_precision.integer, self.name))
             
             accum_name = 'accum' + '{}_t'.format(self.index)
             accum_t = NamedType(accum_name, accum_precision)
