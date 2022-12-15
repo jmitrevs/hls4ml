@@ -1572,13 +1572,12 @@ class TimeDistributed(Layer):
             self.weights['d_bias1'].data = folded_bias1
         
         # DenseBatchNorm2 
-        # d_weight2 = layer.weights[3].numpy()
-        # d_bias2 = None
-        # gamma2 = layer.weights[4].numpy()
-        # beta2 = layer.weights[5].numpy()
-        
-        # mean2 = layer.weights[10].numpy()
-        # var2 = layer.weights[11].numpy()
+        d_weight2 = kernel_weights_list[1] if len(kernel_weights_list) else None
+        d_bias2 = bias_weights_list[1] if len(bias_weights_list) else None
+        gamma2 = gamma_weights_list[1] if len(gamma_weights_list) else None
+        beta2 = beta_weights_list[1] if len(beta_weights_list) else None
+        mean2 = mean_weights_list[1] if len(mean_weights_list) else None
+        var2 = var_weights_list[1] if len(var_weights_list) else None
         epsilon2 = self.get_attr('epsilon2')
         
         folded_weights2, folded_bias2 = self._get_folded_weights(d_weight2, d_bias2, gamma2, beta2, mean2, var2, epsilon2)
