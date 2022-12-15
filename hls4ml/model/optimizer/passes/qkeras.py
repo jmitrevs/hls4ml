@@ -64,10 +64,13 @@ class OutputRoundingSaturationMode(ConfigurableOptimizerPass):
         out_t = NamedType(out_var.type.name, new_precision)
         out_var.type = out_t
         node.attributes['result_t'] = out_t
-
+        
+        # don't round the accun_t
+        '''
         if node.get_attr('accum_t') is not None:
             accum_t = NamedType('layer{}_accum_t'.format(node.index), new_precision)
             node.set_attr('accum_t', new_precision)
+        '''
         return False
 
     def precision_string_modify(self, pstr):
