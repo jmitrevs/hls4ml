@@ -383,9 +383,12 @@ class DenseBatchnorm(Dense):
         else:
             self.weights['weight'].data_unquantized = folded_weights
             self.weights['weight'].data = self.get_attr('weight_quantizer')(folded_weights)
-        self.weights['bias'].data_unquantized = folded_bias
+        
         bias_q = self.get_attr('bias_quantizer')
-        if bias_q is not None:
+        self.add_weights_variable(name='bias', var_name='b{index}', data=folded_bias, quantizer=bias_q)
+        self.weights['bias'].data_unquantized = folded_bias
+        
+        if bias_q is not None:            
             self.weights['bias'].data = bias_q(folded_bias)
         else:
             self.weights['bias'].data = folded_bias
