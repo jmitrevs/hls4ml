@@ -66,7 +66,7 @@ resize_config_template = """struct config{index} : nnet::resize_config {{
     static const unsigned new_width = {out_width};
 }};\n"""
 
-resize_function_template = 'nnet::resize_{algorithm}_ss<{input_t}, {config}>({input}, {output});'
+resize_function_template = 'nnet::resize_{algorithm}_ss<{input_t}, {output_t}, {config}>({input}, {output});'
 
 resize_include_list = ['nnet_utils/nnet_image.h', 'nnet_utils/nnet_image_stream.h']
 
