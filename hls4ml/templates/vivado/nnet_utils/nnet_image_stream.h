@@ -62,10 +62,10 @@ void resize_nearest(
 
 // --------------------------------------Single Stream--------------------------------------------
 
-template<class data_T, typename CONFIG_T>
+template<class data_T, class res_T, typename CONFIG_T>
 void resize_nearest_ss(
     hls::stream<data_T> &image,
-    hls::stream<data_T> &resized
+    hls::stream<res_T> &resized
 ) {
 	assert(CONFIG_T::new_height % CONFIG_T::height == 0);
 	assert(CONFIG_T::new_width % CONFIG_T::width == 0);
