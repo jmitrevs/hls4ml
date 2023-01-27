@@ -7,7 +7,7 @@ import os
 import re
 import glob
 from collections import OrderedDict
-
+from hls4ml.model.layers import Dense, TimeDistributed
 from hls4ml.writer.writers import Writer
 from hls4ml.backends import get_backend
 
@@ -50,6 +50,71 @@ class VivadoWriter(Writer):
             if write_txt_file:
                 txt_file.write(sep + x)
             sep = ", "
+        h_file.write("};\n")
+        if write_txt_file:
+            h_file.write("#endif\n")
+            txt_file.close()
+        h_file.write("\n#endif\n")
+        h_file.close()
+        
+        # 2023 1 multi dim print array for dense_ss
+    def print_array_to_cpp_2D(self, var, odir, write_txt_file=True):
+        #######################################
+        ## Print 2d weight array to C++
+        #######################################
+
+        h_file = open("{}/firmware/weights/{}.h".format(odir,var.name),"w")
+        if write_txt_file:
+            txt_file = open("{}/firmware/weights/{}.txt".format(odir,var.name),"w")
+
+        #meta data
+        h_file.write("//Numpy array shape {}\n".format(var.shape))
+        h_file.write("//Min {:.12f}\n".format(np.min(var.min)))
+        h_file.write("//Max {:.12f}\n".format(np.max(var.max)))
+        h_file.write("//Number of zeros {}\n".format(var.nzeros))
+        h_file.write("\n")
+
+        h_file.write("#ifndef {}_H_\n".format(var.name.upper()))
+        h_file.write("#define {}_H_\n".format(var.name.upper()))
+        h_file.write("\n")
+        
+        # original var.def_cpp is like weight3_t w3[196608], str type
+        def_cpp = var.definition_cpp() 
+        def_cpp = def_cpp.split("[")[0]
+        for x in var.shape:
+            def_cpp  =  def_cpp + "[{}]".format(x)
+        
+        if write_txt_file:
+            h_file.write("#ifndef __SYNTHESIS__\n")
+            h_file.write(def_cpp + ";\n")
+            h_file.write("#else\n")
+
+        h_file.write(def_cpp + " = {\n")
+                
+        #fill c++ array.
+        weight_array = []
+        for x in var:
+            weight_array.append(x)
+        
+        # transpose again
+        weight_array = np.array(weight_array).reshape(var.shape[1], var.shape[0])
+        weight_array = np.transpose(weight_array)
+        
+        for i in range(var.shape[0]):        
+            h_file.write("{")
+            for j in range(var.shape[1]):
+                sep_txt = ", "
+                if j == var.shape[1]-1 and i == var.shape[0]-1:
+                    sep = "}\n"  
+                    sep_txt = ""                  
+                elif j == var.shape[1]-1:                    
+                    sep = "},\n"                    
+                else:
+                    sep = ", "                                  
+                h_file.write(weight_array[i][j] + sep)
+                if write_txt_file:
+                    txt_file.write(weight_array[i][j]+ sep_txt)
+                                        
         h_file.write("};\n")
         if write_txt_file:
             h_file.write("#endif\n")
@@ -135,6 +200,9 @@ class VivadoWriter(Writer):
                             newline += indent + '    nnet::load_compressed_weights_from_txt<{}, {}>({}, "{}.txt");\n'.format(w.type.name, w.nonzeros, w.name, w.name)
                         elif w.weight_class == 'ExponentWeightVariable':
                             newline += indent + '    nnet::load_exponent_weights_from_txt<{}, {}>({}, "{}.txt");\n'.format(w.type.name, w.data_length, w.name, w.name)
+                        # 2023 1 use mult-array for dense_ss        
+                        elif (isinstance(layer, Dense) or isinstance(layer, TimeDistributed)) and len(w.shape) == 2:  #for kernel:
+                            newline += indent + '    nnet::load_2D_weights_from_txt<{}, {}, {}>({}, "{}.txt");\n'.format(w.type.name, w.shape[0], w.shape[1], w.name, w.name)
                         else:
                             newline += indent + '    nnet::load_weights_from_txt<{}, {}>({}, "{}.txt");\n'.format(w.type.name, w.data_length, w.name, w.name)
 
@@ -304,7 +372,11 @@ class VivadoWriter(Writer):
     def write_weights(self, model):
         for layer in model.get_layers():
             for weights in layer.get_weights():
-                self.print_array_to_cpp(weights, model.config.get_output_dir())
+                # 2023 1 use mult-array for dense_ss
+                if (isinstance(layer, Dense) or isinstance(layer, TimeDistributed)) and len(weights.shape) == 2:  #for kernel
+                    self.print_array_to_cpp_2D(weights, model.config.get_output_dir())
+                else:
+                    self.print_array_to_cpp(weights, model.config.get_output_dir())
 
     def __make_dat_file(self, original_path, project_path):
         """
