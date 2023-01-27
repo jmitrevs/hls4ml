@@ -67,6 +67,36 @@ void load_weights_from_txt(T *w, const char* fname) {
     }
 }
 
+ template<class T, size_t ROW, size_t COL>
+ void load_2D_weights_from_txt(T w[ROW][COL], const char* fname) {
+     std::cout <<"load_2D_weights_from_txt"<<std::endl;
+     std::string full_path = std::string(WEIGHTS_DIR) + "/" + std::string(fname);
+     std::ifstream infile(full_path.c_str(), std::ios::binary);
+ 
+     if (infile.fail()) {
+         std::cerr << "ERROR: file " << std::string(fname) << " does not exist" << std::endl;
+         exit(1);
+     }
+ 
+     std::string line;
+     if (std::getline(infile, line)) {
+         std::istringstream iss(line);
+         std::string token;
+ 
+         size_t i = 0;
+         size_t j = 0;
+         
+         while(std::getline(iss, token, ',')) {
+             std::istringstream(token) >> w[i][j];
+             if(j < COL-1)j++;
+             else {
+                 j=0;
+                 i++;
+             }
+         }
+     }
+ }
+ 
 template<class T, size_t SIZE>
 void load_compressed_weights_from_txt(T *w, const char* fname) {
 
