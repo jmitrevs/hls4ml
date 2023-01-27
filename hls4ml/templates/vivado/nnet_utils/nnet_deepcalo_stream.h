@@ -276,9 +276,9 @@ template<class data_T, class res_T, typename CONFIG_T>
 void timedistributed_ss(
         hls::stream<data_T> &data,
         hls::stream<res_T> &res,
-		typename CONFIG_T::dense1_config::weight_t     d_weight1[CONFIG_T::n_in*CONFIG_T::n_hid],		
+		typename CONFIG_T::dense1_config::weight_t     d_weight1[CONFIG_T::n_in][CONFIG_T::n_hid],		
 		typename CONFIG_T::dense1_config::bias_t       d_bias1[CONFIG_T::n_hid],		
-		typename CONFIG_T::dense2_config::weight_t     d_weight2[CONFIG_T::n_hid*CONFIG_T::n_out],
+		typename CONFIG_T::dense2_config::weight_t     d_weight2[CONFIG_T::n_hid][CONFIG_T::n_out],
 		typename CONFIG_T::dense2_config::bias_t       d_bias2[CONFIG_T::n_out]	
 
 	  ) {
