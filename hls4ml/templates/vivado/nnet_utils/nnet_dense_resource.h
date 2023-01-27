@@ -550,7 +550,7 @@ void dense_large(
 }
 
 template<class data_T, class res_T, typename CONFIG_T>
-void dense_ss(
+void dense_ss_1d(
 	hls::stream<data_T> &data,
 	hls::stream<res_T>  &res,
 	typename CONFIG_T::weight_t weights[CONFIG_T::n_in*CONFIG_T::n_out],
@@ -599,6 +599,69 @@ void dense_ss(
 	}
 }
 
+// 2d ss
+template<class data_T, class res_T, typename CONFIG_T>
+void dense_ss(
+      hls::stream<data_T> &data,
+      hls::stream<res_T>  &res,
+      typename CONFIG_T::weight_t weights[CONFIG_T::n_in][CONFIG_T::n_out],
+      typename CONFIG_T::bias_t   biases[CONFIG_T::n_out]) {
+      
+      // Check the validation of the reuse factor
+      const int reuse = CONFIG_T::reuse_factor;
+      const int block_factor = DIV_ROUNDUP(CONFIG_T::n_out,reuse);
+	  //#pragma HLS function_instantiate variable=weights,biases
+      //#pragma HLS ARRAY_RESHAPE variable=weights cyclic factor=block_factor dim=2
+      #pragma HLS ARRAY_PARTITION variable=weights cyclic factor=block_factor dim=2
+      #pragma HLS ARRAY_PARTITION variable=biases complete
+      
+      typename CONFIG_T::accum_t acc[CONFIG_T::n_out];
+      #pragma HLS ARRAY_PARTITION variable=acc complete
+      
+      InitAccum:
+	  Loop1: for (int iacc = 0; iacc < CONFIG_T::n_out; iacc++) {
+		#pragma HLS UNROLL
+		acc[iacc] = (typename CONFIG_T::accum_t) biases[iacc];
+	  }
+
+	 
+	 data_T tmpdata[CONFIG_T::n_in];
+	 Loop22: for(int i_in = 0; i_in < CONFIG_T::n_in; i_in++) {
+		#pragma HLS PIPELINE II=1
+		tmpdata[i_in] = data.read();
+	 }
+	 
+	 unsigned acc_index = 0;
+	 typename CONFIG_T::accum_t tmpt[block_factor];
+	 #pragma HLS ARRAY_PARTITION variable=tmpt complete  
+     Loop2_1: for(int i_in = 0; i_in < CONFIG_T::n_in; i_in++) {
+		 #pragma HLS PIPELINE off
+        Loop2_2: for (int iacc = 0 ; iacc < reuse; iacc++) {
+          #pragma HLS PIPELINE II=1
+          Loop2_3: for (int iacc2 = 0; iacc2 < block_factor; iacc2++) {
+            #pragma HLS UNROLL
+			unsigned w_index = block_factor*iacc+iacc2; 
+            tmpt[iacc2] = product_dense<data_T, typename CONFIG_T::weight_t, typename CONFIG_T::accum_t>(tmpdata[i_in], weights[i_in][w_index]);
+			//std::cout <<w_index<<" ";
+			//std::cout <<acc_index<<std::endl;
+          }
+		  Loop2_4: for (int iacc2 = 0; iacc2 < block_factor; iacc2++) {
+            #pragma HLS UNROLL
+            acc[block_factor*iacc+iacc2] += tmpt[iacc2];
+			//std::cout <<w_index<<" ";
+			//std::cout <<acc_index<<std::endl;
+          }
+
+      }
+
+     }
+     ResWrite:for (int iacc = 0; iacc < CONFIG_T::n_out; iacc++) {
+         #pragma HLS PIPELINE
+         res_T tmpres = (res_T)acc[iacc];
+         res.write(tmpres);
+     }
+}
+	
 	
 }
 #endif
