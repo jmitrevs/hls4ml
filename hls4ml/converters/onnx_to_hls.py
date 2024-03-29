@@ -1,6 +1,5 @@
-import numpy as np
 import onnx
-from onnx import helper, numpy_helper, shape_inference
+from onnx import helper, numpy_helper
 
 from hls4ml.model import ModelGraph
 
@@ -61,18 +60,13 @@ class ONNXDataReader:
                 else:
                     data = data.transpose()
 
-            # Check for transB in Gemm
-            if node.op_type == 'Gemm':
-                if not get_onnx_attribute(node, 'transB'):
-                    data = data.transpose()
-
         return data
 
     def add_input(self, layer_name, inputs, transpose=True, perm=None):
         self.input_map[layer_name] = {'inputs': inputs, 'transpose': transpose, 'perm': perm}
 
 
-# ----------------------Helpers--------------------- #
+# ----------------------Helpers---------------------
 def sanitize_layer_name(layer):
     new_name = layer['name']
     if new_name[0].isdigit():
@@ -99,9 +93,52 @@ def get_onnx_attribute(operation, name, default=None):
     return value
 
 
-def get_input_shape(model, operation, input_idx=0):
-    value_info_idx = next((i for i, x in enumerate(model.graph.value_info) if x.name == operation.input[input_idx]), 0)
-    return [d.dim_value for d in model.graph.value_info[value_info_idx].type.tensor_type.shape.dim]
+def get_global_input_shape(graph, inp):
+    """Return the global input shape of the graph with name inp
+
+    Arguments:
+        graph:  the onnx graph
+        inp:  the global input name (str)
+
+    Returns:
+        The shape (tuple)
+
+    Raises:
+        StopIteration:  If the global input name is not found
+    """
+    inp_shape = next(x.type.tensor_type.shape.dim for x in graph.input if x.name == inp)
+    return tuple(x.dim_value for x in inp_shape)
+
+
+def get_input_shape(graph, node):
+    """Return the input shapes of the node in the model
+
+    Arguments:
+        graph:  the onnx graph
+        node:  the node for which the input is desired
+
+    Returns:
+        The shapes of all the inputs (list of tuples)
+
+    Raises:
+        StopIteration:  If the an input name is not found in the graph
+    """
+    rv = []
+    for inp in node.input:
+        try:
+            value_info_idx = next((i for i, x in enumerate(graph.value_info) if x.name == inp))
+            dim = tuple(d.dim_value for d in graph.value_info[value_info_idx].type.tensor_type.shape.dim)
+        except StopIteration:
+            # The input is not in the graph, likely it's the input
+            dim = get_global_input_shape(graph, inp)
+        if dim:
+            rv.append(dim)
+    return rv
+
+
+def get_constant_value(graph, constant_name):
+    tensor = next((x for x in graph.initializer if x.name == constant_name), None)
+    return numpy_helper.to_array(tensor)
 
 
 def compute_pads_1d(operation, layer):
@@ -155,7 +192,7 @@ def compute_pads_2d(operation, layer):
     return pads
 
 
-# ----------------------Layer handling--------------------- #
+# ----------------------Layer handling---------------------
 layer_handlers = {}
 
 
@@ -178,27 +215,6 @@ def onnx_handler(*args):
     return decorator
 
 
-# --->> A set of functions to address the naming convetion in ONNx's graph
-def get_onnx_input_name(node, graph):
-    """
-    In ONNX, when calling node.input, it returns the node input's index in the graph instead of the input's name.
-    However, the input's name is used for indexing in ModelGraph's graph. This function return the input node's name instead.
-    """
-
-    in_node = [in_node for in_node in graph.node if (in_node.output[0] in node.input)]
-
-    if in_node:
-        if in_node[0].op_type != 'Flatten':
-            input_node_name = [x.name for x in in_node]
-        else:  # IF it's a flatten
-            input_node_name = [x.name for x in graph.node if (x.output[0] in in_node[0].input)]
-
-        return input_node_name
-
-    else:  # If there is no input name it's actually the first layer
-        return [replace_char_inconsitency(node.input[0])]
-
-
 def get_out_layer_name(graph):
     """
     Get the output layer's name for the model.
@@ -212,14 +228,14 @@ def onnx_to_hls(config):
     """Convert onnx model to hls model from configuration.
 
     Args:
-        config (dict): ONNX configuration from yaml file or passed through API.
-
-    Raises:
-        Exception: Raised if an unsupported operation is found in the ONNX model.
+        config:
+            onnx configuration (dict) from yaml file or passed through API.
 
     Returns:
-        ModelGraph: hls4ml model object
+        hls_model: hls4ml model object
+
     """
+
     # This is a list of dictionaries to hold all the layer info we need to generate HLS
     layer_list = []
 
@@ -228,8 +244,9 @@ def onnx_to_hls(config):
 
     model = onnx.load(config['OnnxModel']) if isinstance(config['OnnxModel'], str) else config['OnnxModel']
 
-    model = shape_inference.infer_shapes(model)
-    graph = model.graph
+    # # We don't infer the shapes because the QONNX preprocessing does it. We may want to add it back,
+    # # however, if we want to support non-preprocessed ONNX
+    # model = shape_inference.infer_shapes(model)
 
     reader = ONNXDataReader(model)
 
@@ -237,7 +254,8 @@ def onnx_to_hls(config):
     all_inputs = [x.name for x in model.graph.input]
     all_initializers = [x.name for x in model.graph.initializer]
     input_layers = [x for x in all_inputs if x not in all_initializers]
-    output_layers = get_out_layer_name(graph)
+    constant_layers = all_initializers  # no need to copy it even though we change it
+    output_layers = get_out_layer_name(model.graph)
 
     print("Output layers: ", output_layers)
 
@@ -245,66 +263,57 @@ def onnx_to_hls(config):
         input_layer = {}
         input_layer['name'] = replace_char_inconsitency(inp)
         input_layer['class_name'] = 'InputLayer'
-        inp_shape = next((x.type.tensor_type.shape.dim for x in model.graph.input if x.name == inp), None)
-        input_layer['input_shape'] = [x.dim_value for x in inp_shape]
+        inp_shape = get_global_input_shape(model.graph, inp)
+        # We only support ONNX where the first dimension is the batch dimension
+        # Mark it with None
+        input_layer['input_shape'] = (None,) + inp_shape[1:]
 
-        if len(input_layer['input_shape']) > 1:
-            input_layer['input_shape'][0] = None  # Firt dim is batch
-
+        print('Input shape:', input_layer['input_shape'])
         # Clean the layer name for specific models
         sanitize_layer_name(input_layer)
         input_layers[i] = input_layer['name']
 
         layer_list.append(input_layer)
 
+    for i, constant in enumerate(constant_layers):
+        constant_layer = {}
+        constant_layer['name'] = replace_char_inconsitency(constant)
+        constant_layer['class_name'] = 'Constant'
+        constant_layer['value'] = get_constant_value(model.graph, constant)
+
+        # Clean the layer name for specific models
+        sanitize_layer_name(constant_layer)
+        constant_layers[i] = constant_layer['name']
+
+        layer_list.append(constant_layer)
+
     # Defined supported layers and check for unsupported layer type
-    skip_layers = ['Dropout', 'Identity', 'Flatten']
+    skip_layers = ['Dropout', 'Identity']
 
     # Map inputs of skipped layers
     inputs_map = {}
 
     supported_layers = get_supported_onnx_layers() + skip_layers
 
-    # Get input shape
-    current_shape = [input_layer['input_shape']]
-    print('Input shape:', current_shape[0])
-
-    # Loop through layers
-    layer_counter = 0
-
-    # Output shape tracking
-    output_shape = None
-
     print('Topology:')
-    for node in graph.node:
+    for node in model.graph.node:
         if node.op_type not in supported_layers:
             raise Exception(f'ERROR: Unsupported operation type: {node.op_type}')
 
-        # If not the first layer then input shape is taken from last layer's output
-        if layer_counter != 0:
-            current_shape = [output_shape]
+        current_shape = get_input_shape(model.graph, node)
 
         if node.op_type in skip_layers:
-            if node.op_type == 'Flatten':
-                output_shape = [current_shape[0][0], np.prod(current_shape[0][1:])]
+            # Currently supported skipped layers have only one input and output
+            # Skipped layers can follow each other (e.g., Dropout -> Flatten)
 
-            else:
-                # Currently supported skipped layers have only one input and output
-                # Skipped layers can follow each other (e.g., Dropout -> Flatten)
-
-                # Mapping inputs
-                input_name = inputs_map.get(node.input[0], node.input[0])
-                output_name = node.output[0]
-                inputs_map[output_name] = input_name
-
-                output_shape = current_shape[0]
+            # Mapping inputs
+            input_name = inputs_map.get(node.input[0], node.input[0])
+            output_name = node.output[0]
+            inputs_map[output_name] = input_name
             continue
 
-        if node.op_type in supported_layers:
-            layer_counter = layer_counter + 1
-
         # Process the layer
-        layer, output_shape = layer_handlers[node.op_type](reader, node, inputs_map, current_shape, graph, config)
+        layer = layer_handlers[node.op_type](reader, node, inputs_map, current_shape, model.graph, config)
 
         sanitize_layer_name(layer)
         print('Layer name: {}, layer type: {}, current shape: {}'.format(layer['name'], layer['class_name'], current_shape))

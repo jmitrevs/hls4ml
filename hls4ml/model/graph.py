@@ -651,6 +651,17 @@ class ModelGraph:
         directory specified in the `config`.
         """
 
+        def _make_stamp():
+            """Create a unique identifier for the generated code. This identifier is used to
+            compile a unique library and link it with python."""
+            from random import choice
+            from string import hexdigits
+
+            length = 8
+            return ''.join(choice(hexdigits) for m in range(length))
+
+        self.config.config['Stamp'] = _make_stamp()
+
         self.config.backend.write(self)
 
     def compile(self):

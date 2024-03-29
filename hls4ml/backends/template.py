@@ -53,7 +53,7 @@ class LayerConfigTemplate(Template):
 
 
 class FunctionCallTemplate(Template):
-    def __init__(self, layer_class, include_header=None):
+    def __init__(self, layer_class, include_header=()):
         if isinstance(layer_class, (list, tuple, set)):
             name = '_'.join([cls.__name__.lower() for cls in layer_class])
         else:
