@@ -149,6 +149,10 @@ class Backend:
         template = template_cls()
         register_pass(template.get_name(), template, backend=self.name)
 
+    def suffix(self, model):
+        """Some backends need a suffix for function names when calling predict"""
+        return ''
+
 
 backend_map = {}
 

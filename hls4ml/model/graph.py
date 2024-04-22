@@ -703,10 +703,14 @@ class ModelGraph:
 
         x0 = xlist[0]
         if x0.dtype in [np.single, np.float32]:
-            top_function = getattr(self._top_function_lib, self.config.get_project_name() + '_float')
+            top_function = getattr(
+                self._top_function_lib, self.config.get_project_name() + '_float' + self.config.backend.suffix(self)
+            )
             ctype = ctypes.c_float
         elif x0.dtype in [np.double, np.float64, np.float_]:
-            top_function = getattr(self._top_function_lib, self.config.get_project_name() + '_double')
+            top_function = getattr(
+                self._top_function_lib, self.config.get_project_name() + '_double' + self.config.backend.suffix(self)
+            )
             ctype = ctypes.c_double
         else:
             raise Exception(

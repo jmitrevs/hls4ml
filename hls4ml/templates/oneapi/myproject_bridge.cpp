@@ -51,7 +51,7 @@ void collect_trace_output(struct trace_data *c_trace_outputs) {
 }
 
 // Wrapper of top level function for Python bridge
-void myproject_float(
+void myproject_float_mystamp(
     // hls-fpga-machine-learning insert header #float
 ) {
     auto selector = sycl::ext::intel::fpga_emulator_selector_v;
@@ -60,7 +60,7 @@ void myproject_float(
     // hls-fpga-machine-learning insert wrapper #float
 }
 
-void myproject_double(
+void myproject_double_mystamp(
     // hls-fpga-machine-learning insert header #double
 ) {
     auto selector = sycl::ext::intel::fpga_emulator_selector_v;

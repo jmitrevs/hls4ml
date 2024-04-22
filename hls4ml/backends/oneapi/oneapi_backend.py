@@ -156,6 +156,10 @@ class OneAPIBackend(FPGABackend):
             executable = builddir / f'{model.config.get_project_name()}.{build_type}'
             subprocess.run(f'{str(executable)}', shell=True, cwd=builddir, check=True)
 
+    def suffix(self, model):
+        """Some backends need a suffix for function names when calling predict"""
+        return f'_{model.config.get_config_value("Stamp")}'
+
     @layer_optimizer(Layer)
     def init_base_layer(self, layer):
         reuse_factor = layer.model.config.get_reuse_factor(layer)

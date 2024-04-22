@@ -474,6 +474,7 @@ class OneAPIWriter(Writer):
 
                 elif 'myproject' in line:
                     newline = line.replace('myproject', format(project_name))
+                    newline = newline.replace('mystamp', model.config.get_config_value('Stamp'))
 
                 elif 'MyProject' in line:
                     newline = line.replace('MyProject', convert_to_pascal_case(project_name))
