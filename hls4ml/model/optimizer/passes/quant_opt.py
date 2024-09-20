@@ -187,7 +187,7 @@ class FuseQuantWithConstant(OptimizerPass):
         integer = bitwidth
         scale = node.get_attr('scale')
         if _ALSO_MATCH_PO2 and not (scale == np.ones_like(scale)).all():
-            _, exp = np.frexp(np.squeeze(scale))
+            _, exp = np.frexp(np.unique(scale.ravel()).item())
             integer = bitwidth + exp - 1
 
         precision, quantizer = _calculate_precision_quantizer(bitwidth, integer, signed, narrow, rounding_mode)
@@ -336,7 +336,7 @@ class ConstQuantToConstAlpha(OptimizerPass):
 
         inshape = node.get_input_variable().shape
 
-        attributes_rescale = {'n_filt': -1}
+        attributes_rescale = {'n_filt': -1, 'quantizer': quantizer}
 
         rescale_config = copy.deepcopy(model.config.get_layer_config(node))
         rescale_name = f'{node.name}_rescale'
