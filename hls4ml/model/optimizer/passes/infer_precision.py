@@ -22,7 +22,7 @@ class InferPrecisionTypes(ConfigurableOptimizerPass):
         self.infer_no_bias = False
 
     def match(self, node):
-        input_var = node.get_input_variable()
+        input_var = node.get_input_variable() if len(node.inputs) else None
         if input_var is not None and isinstance(input_var.type, UnspecifiedPrecisionType):
             # only infer types if the input type is known
             return False
